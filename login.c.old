@@ -1,0 +1,209 @@
+// gcc -o berry-dm -Os berry-dm.c login.c -lcursesw -lpam -lpam_misc
+// gcc -Os login.c -lcursesw -o login
+#include <ncurses.h>
+#include <locale.h>
+#include <string.h>
+
+int barmenu(const char **array, const int row, const int col, const int arraylength, const int width, int menulength, int selection)
+{
+	int counter, offset=0, key=0;
+	char formatstring[7];
+	curs_set(0);
+
+	if (arraylength < menulength) {
+		menulength = arraylength;
+	}
+
+	if (selection > menulength) {
+		offset = selection-menulength+1;
+	}
+
+	sprintf(formatstring, "%%-%ds", width); // remove - sign to right-justify the menu items
+
+	while (key != 27) {
+		for (counter=0; counter < menulength; counter++) {
+			if (counter+offset==selection) {
+				attron(A_REVERSE);
+			}
+			mvprintw(row+counter, col, formatstring, array[counter+offset]);
+			attroff(A_REVERSE);
+		}
+
+		key = getch();
+
+		switch (key) {
+		case KEY_UP:
+			if (selection) {
+				selection--;
+				if (selection < offset) {
+					offset--;
+				}
+			}
+			break;
+		case KEY_DOWN:
+			if (selection < arraylength-1) {
+				selection++;
+				if (selection > offset+menulength-1) {
+					offset++;
+				}
+			}
+			break;
+		case KEY_HOME:
+			selection = 0;
+			offset = 0;
+			break;
+		case KEY_END:
+			selection = arraylength-1;
+			offset = arraylength-menulength;
+			break;
+		case KEY_PPAGE:
+			selection -= menulength;
+			if (selection < 0) {
+				selection = 0;
+			}
+			offset -= menulength;
+			if (offset < 0) {
+				offset = 0;
+			}
+			break;
+		case KEY_NPAGE:
+			selection += menulength;
+			if (selection > arraylength-1) {
+				selection = arraylength-1;
+			}
+			offset += menulength;
+			if (offset > arraylength-menulength) {
+				offset = arraylength-menulength;
+			}
+			break;
+		case 10: //enter
+			return selection;
+		case KEY_F(1): // function key 1
+			return -1;
+		case 27: //esc
+			// esc twice to get out, otherwise eat the chars that don't work
+			//from home or end on the keypad
+			key=getch();
+			if (key == 27) {
+				curs_set(0);
+				mvaddstr(9, 77, "   ");
+				return -1;
+			} else if (key=='[') {
+				getch();
+				getch();
+			} else {
+				ungetch(key);
+			}
+		}
+	}
+	return -1;
+}
+
+/* ncurses initialization */
+inline void init()
+{
+	initscr();
+	raw();
+	keypad(stdscr, TRUE);
+//	noecho();
+}
+
+/* ncurses cleanup */
+inline void cleanup()
+{
+	getch();
+	endwin();
+}
+
+/* messages printing */
+inline void prompt(unsigned int uiY, unsigned int uiX, const char* pStr)
+{
+	mvprintw(uiY, uiX, pStr);
+}
+
+int main(int argc, char* argv[])
+{
+	/* required data */
+	unsigned int uiH = 0, uiW = 0;
+	const char pPrompt[] = "User : ";
+	const char pPrompt2[]= "Password : ";
+	const char pHelp1[]  = "< Type correct password to Sing In >";
+	const char pHelp2[]  = "< Press any key to leave >                    ";
+	const char pHelp3[]  = "< Incorrect password, press any key to leave >";
+	const char pMsg1[]   = "When men were men and wrote their device drivers";
+	const char pMsg2[]   = "and said yes only to Free Open Source Software.";
+	char user[20], pass[20];
+
+	/*setenv("DM_USER", "berry", 1);
+	setenv("DM_XSESSION", "startlxde", 1);
+	dm_main(argc, argv);*/
+
+	/*do {
+		printf(pPrompt);
+		scanf("%s", user);
+		printf(pPrompt2);
+		scanf("%s", pass);
+		if (!strcmp(pass, "pass")) {
+			if (!strcmp(user, "startlxde")) {
+				setenv("DM_XSESSION", "startlxde", 1);
+			}
+
+			setenv("DM_INIT", user, 1);
+			//setenv("DM_USER", user, 1);
+			dm_main(argc, argv);
+		}
+	} while (1);*/
+
+	if (getenv("DM_RUN_SESSION")) {
+		// xinit berry-dm -- vt07
+		dm_main(argc, argv);
+		return 0;
+	}
+
+	setlocale(LC_ALL, "");
+	init();
+
+	int selection, arraylength=3, width=5, menulength=5;
+	const char *array[]= {"Maynard (Weston)", "LXDE", "Console"};
+	getmaxyx(stdscr, uiH, uiW);
+	selection = barmenu(array, (uiH-arraylength)/2, (uiW-18)/2, arraylength, width, menulength, 0);
+
+	/* show the initial messages */
+	getmaxyx(stdscr, uiH, uiW);
+	prompt((uiH-2), 2, pHelp1);
+	prompt(uiH/2, (uiW-strlen(pPrompt))/2, pPrompt);
+	getnstr(user, sizeof(user));
+
+	/* show the second messages */
+	noecho();
+	getmaxyx(stdscr, uiH, uiW);
+	prompt((uiH-2), 2, pHelp1);
+	prompt(uiH/2, (uiW-strlen(pPrompt2))/2, pPrompt2);
+	getnstr(pass, sizeof(pass));
+
+	/* valid/invalid password handling */
+	if (!strcmp(pass, "pass")) {
+/*		prompt((uiH-2), 2, pHelp2);
+		prompt((uiH/2)-1, (uiW-strlen(pMsg1))/2, pMsg1);
+		prompt(uiH/2, (uiW-strlen(pMsg2))/2, pMsg2);*/
+
+		refresh();
+//		cleanup();
+		endwin();
+
+		if (!strcmp(user, "startlxde")) {
+			setenv("DM_XSESSION", "startlxde", 1);
+		}
+
+		setenv("DM_INIT", user, 1);
+		//setenv("DM_USER", user, 1);
+		dm_main(argc, argv);
+	} else {
+		prompt((uiH-2), 2, pHelp3);
+	}
+	refresh();
+	cleanup();
+
+	return 0;
+}
+
