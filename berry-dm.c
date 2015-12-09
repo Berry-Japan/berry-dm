@@ -71,6 +71,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/vt.h>
+#include <sys/ioctl.h>
 
 #include <security/pam_appl.h>
 #include <security/pam_misc.h>

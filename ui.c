@@ -12,7 +12,18 @@
 #include <time.h>
 #include "3rd/ini.h"
 
-#define CONFIG		"berry-dm.conf"
+//#define DEBUG
+#ifdef DEBUG
+int authenticate(char *service, char *user, char *pass)
+{
+	return 1;
+}
+#else
+// login.c
+extern int authenticate(char *service, char *user, char *pass);
+#endif
+
+#define CONFIG		"/etc/berry-dm.conf"
 
 int split(char *data, char *argv[], int size)
 {
@@ -23,52 +34,22 @@ int split(char *data, char *argv[], int size)
 	} while ((i < size) && (argv[i] != NULL));
 	return i;
 }
-/*int split(char *str, char delim, char ***array, int *length)
-{
-	int count = 0;
-	char *p = str;
-	// Count occurance of delim in string
-	while ((p=strchr(p, delim)) != NULL) {
-		*p = 0;	// Null terminate the deliminator.
-		p++;	// Skip past our new null
-		count++;
-	}
-
-	// allocate dynamic array
-	char **res = calloc(1, count * sizeof(char *));
-	if (!res) return -1;
-
-	p = str;
-	for (int k=0; k<count; k++) {
-		if (*p) res[k] = p;	// Copy start of string
-		p = strchr(p, 0);	// Look for next null
-		p++;			// Start of next string
-	}
-
-	*array = res;
-	*length = count;
-	return 0;
-}*/
 
 #define CSESSIONS	0
 #define CUSERS		1
 #define CLANGUAGES	2
 #define CIMAGE		3
-#define CF10		4
-#define CF11		5
-#define CF12		6
+#define CF7		4
+#define CF8		5
+#define CF9		6
+#define CF10		7
+#define CF11		8
+#define CF12		9
 typedef struct
 {
-	int version;
-	char* s[7];
-
+	char* s[10];
 	int fields_count[3];
 	char* fields[3][10];
-
-	/*int sessions_count;
-	char* sessions[10];
-	int languages_count;
-	char* languages[10];*/
 } configuration;
 
 int handler(void* user, const char* section, const char* name, const char* value)
@@ -76,21 +57,23 @@ int handler(void* user, const char* section, const char* name, const char* value
 	configuration* pconfig = (configuration*)user;
 
 	#define MATCH(s, n) strcmp(section, s) == 0 && strcmp(name, n) == 0
-	if (MATCH("protocol", "version")) {
-		pconfig->version = atoi(value);
-	} else if (MATCH("config", "sessions")) {
+	if (MATCH("config", "sessions")) {
 		pconfig->s[CSESSIONS] = strdup(value);
-//		pconfig->sessions_count = split(pconfig->s[CSESSIONS], pconfig->sessions, 10);
 		pconfig->fields_count[CSESSIONS] = split(pconfig->s[CSESSIONS], pconfig->fields[CSESSIONS], 10);
 	} else if (MATCH("config", "users")) {
 		pconfig->s[CUSERS] = strdup(value);
 		pconfig->fields_count[CUSERS] = split(pconfig->s[CUSERS], pconfig->fields[CUSERS], 10);
 	} else if (MATCH("config", "languages")) {
 		pconfig->s[CLANGUAGES] = strdup(value);
-//		pconfig->languages_count = split(pconfig->s[CLANGUAGES], pconfig->languages, 10);
 		pconfig->fields_count[CLANGUAGES] = split(pconfig->s[CLANGUAGES], pconfig->fields[CLANGUAGES], 10);
 	} else if (MATCH("config", "image")) {
 		pconfig->s[CIMAGE] = strdup(value);
+	} else if (MATCH("config", "F7")) {
+		pconfig->s[CF7] = strdup(value);
+	} else if (MATCH("config", "F8")) {
+		pconfig->s[CF8] = strdup(value);
+	} else if (MATCH("config", "F9")) {
+		pconfig->s[CF9] = strdup(value);
 	} else if (MATCH("config", "F10")) {
 		pconfig->s[CF10] = strdup(value);
 	} else if (MATCH("config", "F11")) {
@@ -224,8 +207,6 @@ void ui(configuration *conf)
 	// get terminal size
 	struct winsize ws;
 	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) != -1) {
-//		printf("terminal_width  = %d\n", ws.ws_col);
-//		printf("terminal_height = %d\n", ws.ws_row);
 		if (0 < ws.ws_col && ws.ws_col == (size_t)ws.ws_col) {
 			width = ws.ws_col;
 			height = ws.ws_row;
@@ -251,10 +232,13 @@ void ui(configuration *conf)
 	int sel[3];
 	sel[0] = sel[1] = sel[2] = 0;
 
+	char str[256];
+	str[0] = 0;
+
 	long long c;
 	unsigned int cur_pos = 0;
 	unsigned int max_pos = 0;
-	//char *pmp_str = "command > ";
+
 	ECLEAR();
 	do {
 		ELOCATE(1, 1);
@@ -265,40 +249,37 @@ void ui(configuration *conf)
 		printf("%s", ctime(&now));
 
 		ELOCATE(cy,   cx-11);
-//		printf("SESSION  : %*s", 20, conf->sessions[sel[0]*2]);
 		printf("SESSION  : %*s", 20, conf->fields[CSESSIONS][sel[CSESSIONS]*2]);
 		ELOCATE(cy+2, cx-11);
 		printf("USER     : %*s", 20, conf->fields[CUSERS][sel[CUSERS]]);
 		ELOCATE(cy+4, cx-11);
-		printf("PASSWORD : ");
+		printf("PASSWORD : %*s", 20, str);
 		ELOCATE(cy+6, cx-11);
-//		printf("LANGUAGE : %*s", 20, conf->languages[sel[2]*2]);
 		printf("LANGUAGE : %*s", 20, conf->fields[CLANGUAGES][sel[CLANGUAGES]*2]);
 
 		c = 0;
 		read(0, &c, 8);
-//		ELOCATE(height-1, width-1);
 
-//		ELOCATE(height-2, 1+cur_pos);
 		ELOCATE(cy+4, cx+cur_pos);
 		switch (c) {
 		case -1:
 		case 0:
 		case 0x1b:		// Esc
 			continue;
-		case 0x08:		// Back space
-			cur_pos--;
-			if (cur_pos<0) cur_pos = 0;
-			/*if (cur_pos > strlen(pmp_str)) {
-				printf("%c \b", c);
+		case 0x7f:		// Back space
+			if (cur_pos!=0) {
 				cur_pos--;
-			}*/
+				str[cur_pos] = 0;
+			}
 			break;
-		/*case 0x0a:		// Enter
-			printf("\n%s", pmp_str);
-			cur_pos = strlen(pmp_str);
-			max_pos = cur_pos;
-			break;*/
+		case 0x0a:		// Enter
+			if (authenticate("system-auth", conf->fields[CUSERS][sel[CUSERS]], str)) {
+				ELOCATE(cy+8, cx-11);
+				printf("Not Authenticated");
+				c = 0;
+				continue;
+			}
+			break;
 		case 0x415b1b:		// Up
 			field--;
 			if (field<0) field = 2;
@@ -308,24 +289,21 @@ void ui(configuration *conf)
 			if (field>2) field = 0;
 			break;
 		case 0x435b1b:		// Right
-//			sel[0]++;
-//			if (sel[0]>=conf->sessions_count) sel[0] = 0;
 			sel[field]++;
 			if (sel[field]>=conf->fields_count[field]) sel[field] = 0;
-			/*if (max_pos > cur_pos) {
-				ERIGHT();
-				cur_pos++;
-			}*/
 			break;
 		case 0x445b1b:		// Left
-//			sel[0]--;
-//			if (sel[0]<0) sel[0] = conf->sessions_count-1;
 			sel[field]--;
 			if (sel[field]<0) sel[field] = conf->fields_count[field]-1;
-			/*if (cur_pos > strlen(pmp_str)) {
-				ELEFT();
-				cur_pos--;
-			}*/
+			break;
+		case 0x7e38325b1b:	// F7
+			system(conf->s[CF7]);
+			break;
+		case 0x7e39325b1b:	// F8
+			system(conf->s[CF8]);
+			break;
+		case 0x7e30325b1b:	// F9
+			system(conf->s[CF9]);
 			break;
 		case 0x7e31325b1b:	// F10
 			system(conf->s[CF10]);
@@ -337,37 +315,43 @@ void ui(configuration *conf)
 			system(conf->s[CF12]);
 			break;
 		default:
-			printf("%c", c);
+			if (cur_pos<200) {
+				str[cur_pos++] = c;
+				str[cur_pos] = 0;
+			}
+			//printf("*");
+			/*printf("%c", c);
 			max_pos++;
-			cur_pos++;
+			cur_pos++;*/
 		}
-	} while (c!=27 && c!=10);
+	} while (/*c!=27 &&*/ c!=10);
 	ECLEAR();
 	ELOCATE(1, 1);
-
-/*	for (int i=0; i<256; i++) EPUT(i);
-
-	ELOCATE(7, 8);
-	ECOL(near(0, 100, 0));
-	printf("Hello!\n");	// メッセージを出力
-	printf("Press [Enter]...\n");	// メッセージを出力
-	getchar();			// キー入力を待つ*/
 
         EDEFAULT();
 	tcsetattr(STDIN_FILENO, TCSANOW, &save);
 	//ioctl(0, TCSETAF, &save);
+
+#ifndef DEBUG
+	char *p = conf->fields[CSESSIONS][sel[CSESSIONS]*2+1];
+	if (!strcmp(p, "/etc/X11/berryos-xsession")) {
+		// for X
+		setenv("DM_XSESSION", "/etc/X11/berryos-xsession", 1);
+	} else {
+		// for weston etc...
+		setenv("DM_RUN_SESSION", "1", 1);
+		setenv("DM_XSESSION", p, 1);
+		setenv("DM_XINIT", p, 1);
+	}
+	setenv("DM_USER", conf->fields[CUSERS][sel[CUSERS]], 1);
+	setenv("LANG", conf->fields[CLANGUAGES][sel[CLANGUAGES]*2+1], 1);
+#endif
 }
 
-int main()
+void dm_select()
 {
 	configuration config;
-	config.s[CSESSIONS] = 0;
-//	config.s[CSESSIONS] = "LXDE,/etc/X11/berryos-xsession,Console,bash";
-	/*config.sessions_count = 4;
-	config.sessions[0] = "LXDE";
-	config.sessions[1] = "/etc/X11/berryos-xsession";
-	config.sessions[2] = "Console";
-	config.sessions[3] = "bash";*/
+	for (int i=0; i<10; i++) config.s[i] = 0;
 	config.fields_count[CSESSIONS] = 4;
 	config.fields[CSESSIONS][0] = "LXDE";
 	config.fields[CSESSIONS][1] = "/etc/X11/berryos-xsession";
@@ -376,12 +360,6 @@ int main()
 	config.fields_count[CUSERS] = 2;
 	config.fields[CUSERS][0] = "berry";
 	config.fields[CUSERS][1] = "root";
-//	config.s[CLANGUAGES] = "Japanese,ja_JP.utf8,English,en_US.utf8";
-	/*config.languages_count = 4;
-	config.languages[0] = "Japanese";
-	config.languages[1] = "ja_JP.utf8";
-	config.languages[2] = "English";
-	config.languages[3] = "en_US.utf8";*/
 	config.fields_count[CLANGUAGES] = 4;
 	config.fields[CLANGUAGES][0] = "Japanese";
 	config.fields[CLANGUAGES][1] = "ja_JP.utf8";
@@ -393,13 +371,19 @@ int main()
 		printf("Can't load '"CONFIG"'\n");
 //		return 1;
 	}
-//	config.sessions_count /= 2;
-//	config.languages_count /= 2;
 	config.fields_count[CSESSIONS] /= 2;
 	config.fields_count[CLANGUAGES] /= 2;
 
 	ui(&config);
 
-	if (config.s[CSESSIONS]) for (int i=0; i<6; i++) free(config.s[i]);
+	for (int i=0; i<10; i++) if (config.s[i]) free(config.s[i]);
+//	return 0;
+}
+
+#ifdef DEBUG
+int main()
+{
+	dm_select();
 	return 0;
 }
+#endif
