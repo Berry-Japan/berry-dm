@@ -189,6 +189,53 @@ int near(int r0, int g0, int b0)
 	return 255;
 }
 
+#if 0
+char *caGetFileContents(const char *file_name)
+{
+	char *buf;
+	FILE *fp;
+	size_t read_size, buf_size;
+
+	fp = fopen(file_name, "r");
+	if (!fp) {
+		LOGE("Cannot open %s.\n", file_name);
+		return 0;
+	}
+
+	buf_size = BUFSIZ;
+	buf = malloc(sizeof(char) * buf_size);
+	if (!buf) {
+		LOGE("Memory allocation error.\n");
+		return 0;
+	}
+
+	read_size = 0;
+	for (;;) {
+		size_t s;
+		s = fread(buf + read_size, sizeof(char), BUFSIZ, fp);
+		read_size += s;
+		if (s < BUFSIZ) break;
+		buf_size += BUFSIZ;
+		buf = realloc(buf, sizeof(char) * buf_size);
+		if (!buf) {
+			LOGE("Memory allocation error.\n");
+			return 0;
+		}
+	}
+	*(buf + read_size) = '\0';
+
+	return buf;
+}
+//#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+{
+	unsigned char *pixels;
+	int width, height, bpp;
+	pixels = stbi_load(CATGL_ASSETS(name), &width, &height, &bpp, 4/*RGBA*/);
+	stbi_image_free(pixels);
+}
+#endif
+
 void putImage(char *name)
 {
 	char buff[256];
