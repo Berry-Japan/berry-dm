@@ -9,7 +9,6 @@
 
 #define EDEFAULT()		printf("\x1b[39m\x1b[49m")
 #define ECLEAR()		printf("\033[2J")
-//#define ECLEAR()		printf("\033[3J")
 #define ELOCATE(x, y)		printf("\033[%d;%dH", x, y)
 #define ECOL(clr)		printf("\x1b[0;48;5;%um", clr)
 #define EPUT(clr)		printf("\x1b[0;48;5;%um ", clr)
@@ -110,13 +109,17 @@ int near(int r0, int g0, int b0)
 	return 255;
 }
 
-void putImage(unsigned char *pix, int width, int height, int rx, int ry)
+void putImage(unsigned char *pix, int width, int height, int rx, int ry, int sx, int sy)
 {
+	/*float rx = (float)width / sx;
+	float ry = (float)width / sy;
+	printf("%f,%f\n", rx, ry);*/
+
 	// カラーコード rgb = 000:black 001:blue 010:green 011:cyan 100:red 101:magenta 110:yellow 111:white
 //	char clrcode[8] = {'0', '4', '2', '6', '1', '5', '3', '7'};
 
-	for (int y=0; y<height/ry; y++) {
-		for (int x=0; x<width/rx; x++) {
+	for (int y=0; y</*sy*/height/ry; y++) {
+		for (int x=0; x</*sx*/width/rx; x++) {
 			int r, g, b, s;
 			int clr;
 
@@ -139,7 +142,7 @@ void putImage(unsigned char *pix, int width, int height, int rx, int ry)
 			/*if (color256) {
 				if (fullcolor) {
 					// 拡張 2
-					printf("\x1b[0;48;2;%2u:%2u:%2um ", r,g,b);
+					printf("\x1b[0;48;2;%2u:%2u:%2um ", r, g, b);
 				} else*/ {
 					// 拡張 5;
 					clr = near(r, g, b);
@@ -159,6 +162,11 @@ void putImage(unsigned char *pix, int width, int height, int rx, int ry)
 	}
 }
 
+#define MAX(a,b) (((a) > (b)) ? (a) : (b))
+#define MIN(a,b) (((a) < (b)) ? (a) : (b))
+#define ICEIL(dividend, divisor) \
+  (((dividend) + ((divisor) - 1)) / (divisor))
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 void aviewer(char *name, int sx, int sy)
@@ -166,17 +174,16 @@ void aviewer(char *name, int sx, int sy)
 	unsigned char *pixels;
 	int width, height, bpp;
 	pixels = stbi_load(name, &width, &height, &bpp, 4/*RGBA*/);
-	int rx = width / sx;
-	int ry = height / sy;
+	int rx = MAX(ICEIL(width, sx), 1);
+	int ry = MAX(ICEIL(height, sy), 1);
 	printf("%s %dx%d r[%d,%d] / Screen %d,%d\n", name, width, height, rx, ry, sx, sy);
-	putImage(pixels, width, height, rx, ry);
+	putImage(pixels, width, height, rx, ry, sx, sy);
 	stbi_image_free(pixels);
 }
 
 void usage()
 {
     printf("** aviewer **\n");
-    //printf("Usage: `aviewer <input> [threshold_r=128 threshold_g=128 threshold_b=128]`\n");
     printf("Usage: `aviewer <input> [width height]`\n");
 }
 
