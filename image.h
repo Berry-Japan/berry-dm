@@ -236,7 +236,7 @@ void putImage(unsigned char *pix, int width, int height, int rx, int ry, int sx,
 }
 #endif
 
-void simage(char *str, unsigned char *pix, int width, int height, int rx, int ry, int sx, int sy)
+void simage(unsigned char *str, unsigned char *pix, int width, int height, int rx, int ry, int sx, int sy)
 {
 	for (int y=0; y</*sy*/height/ry; y++) {
 		for (int x=0; x</*sx*/width/rx; x++) {
@@ -261,11 +261,22 @@ void simage(char *str, unsigned char *pix, int width, int height, int rx, int ry
 
 			// 拡張 5
 			clr = near(r, g, b);
-			int len = sprintf(str, "\x1b[0;48;5;%um ", clr);
-			str += len;
+//			int len = sprintf(str, "\x1b[0;48;5;%um ", clr);
+//			str += len;
+			*str++ = clr;
 		}
-		int len = sprintf(str, "\x1b[39m\x1b[49m\n"); // デフォルトに戻す
-		str += len;
+//		int len = sprintf(str, "\x1b[39m\x1b[49m\n"); // デフォルトに戻す
+//		str += len;
+	}
+}
+
+void pimage(unsigned char *pix, int width, int height)
+{
+	for (int y=0; y<height; y++) {
+		for (int x=0; x<width; x++) {
+			printf("\x1b[0;48;5;%um ", *pix++);
+		}
+		printf("\x1b[39m\x1b[49m\n");
 	}
 }
 
@@ -285,14 +296,17 @@ void aviewer(char *name, int sx, int sy)
 	printf("%s %dx%d r[%d,%d] / Screen %d,%d\n", name, width, height, rx, ry, sx, sy);
 //	putImage(pixels, width, height, rx, ry, sx, sy);
 	printf("frames:%d\n", frames);
-	char screen[frames][sx*sy*14+11*sy+1];
+//	char screen[frames][sx*sy*14+11*sy+1];
+	unsigned char screen[frames][width/rx*height/ry];
 	for (int i=0; i<frames; i++) {
 		simage(screen[i], &pixels[width*height*4*i+2*i], width, height, rx, ry, sx, sy);
 	}
 	stbi_image_free(pixels);
 
 	for (int i=0; i<frames; i++) {
-		printf("\033[1;1H%s", screen[i]);
+//		printf("\033[1;1H%s", screen[i]);
+		printf("\033[1;1H");
+		pimage(screen[i], width/rx, height/ry);
 
 		struct timespec req;
 		req.tv_sec  = 0;
