@@ -157,10 +157,20 @@ void ui(configuration *conf)
 	unsigned int max_pos = 0;
 
 	ECLEAR();
+	int w, h, frames, f=0;
+	unsigned char *screen;
+	if (conf->s[CIMAGE]) {
+		screen = aviewer_init(conf->s[CIMAGE], width*0.4, height*0.4, &w, &h, &frames);
+	}
 	do {
 		ELOCATE(1, 1);
-		if (conf->s[CTEXT]) ptext(conf->s[CTEXT]);
-		else if (conf->s[CIMAGE]) aviewer(conf->s[CIMAGE], width*0.4, height*0.4);
+		if (conf->s[CTEXT]) {
+			ptext(conf->s[CTEXT]);
+		} else if (conf->s[CIMAGE]) {
+			pimage(screen+f*w*h, w, h);
+			f++;
+			if (f>=frames) f = 0;
+		}
 
 		time_t now = time(NULL);
 		ELOCATE(height-1, 0);
@@ -245,6 +255,10 @@ void ui(configuration *conf)
 			}
 		}
 	} while (/*c!=27 &&*/ c!=10);
+	if (conf->s[CIMAGE]) {
+		free(screen);
+	}
+
 	ECLEAR();
 	ELOCATE(1, 1);
 

@@ -2,6 +2,12 @@
 
 Minimalistic display manager for console.
 
+## Features
+
+- Lightweight and minimalistic
+- PAM support
+- JPEG, PNG, Animated GIF, BMP support
+
 ## Installation
 
 To run berry-dm

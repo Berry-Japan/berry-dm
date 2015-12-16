@@ -261,12 +261,8 @@ void simage(unsigned char *str, unsigned char *pix, int width, int height, int r
 
 			// 拡張 5
 			clr = near(r, g, b);
-//			int len = sprintf(str, "\x1b[0;48;5;%um ", clr);
-//			str += len;
 			*str++ = clr;
 		}
-//		int len = sprintf(str, "\x1b[39m\x1b[49m\n"); // デフォルトに戻す
-//		str += len;
 	}
 }
 
@@ -285,32 +281,56 @@ void pimage(unsigned char *pix, int width, int height)
 #define ICEIL(dividend, divisor) \
 	(((dividend) + ((divisor) - 1)) / (divisor))
 
-void aviewer(char *name, int sx, int sy)
+unsigned char *aviewer_init(char *name, int sx, int sy, int *w, int *h, int *frames)
 {
 	unsigned char *pixels;
-	int width, height, /*bpp, */frames;
-//	pixels = stbi_load(name, &width, &height, &bpp, 4/*RGBA*/);
+	int width, height;
+
+	pixels = stbi_xload(name, &width, &height, frames);
+	int rx = MAX(ICEIL(width, sx), 1);
+	int ry = MAX(ICEIL(height, sy), 1);
+//	printf("%s %dx%d r[%d,%d] / Screen %d,%d\n", name, width, height, rx, ry, sx, sy);
+//	printf("frames:%d\n", *frames);
+
+	*w = width/rx;
+	*h = height/ry;
+	unsigned char *screen = malloc((*frames)*(*w)*(*h));
+	for (int i=0; i<*frames; i++) {
+		simage(screen+i*(*w)*(*h), &pixels[width*height*4*i+2*i], width, height, rx, ry, sx, sy);
+	}
+	stbi_image_free(pixels);
+
+	return screen;
+}
+
+void aviewer(char *name, int sx, int sy)
+{
+	/*unsigned char *pixels;
+	int width, height;, frames;
+
 	pixels = stbi_xload(name, &width, &height, &frames);
 	int rx = MAX(ICEIL(width, sx), 1);
 	int ry = MAX(ICEIL(height, sy), 1);
 	printf("%s %dx%d r[%d,%d] / Screen %d,%d\n", name, width, height, rx, ry, sx, sy);
-//	putImage(pixels, width, height, rx, ry, sx, sy);
 	printf("frames:%d\n", frames);
-//	char screen[frames][sx*sy*14+11*sy+1];
+
 	unsigned char screen[frames][width/rx*height/ry];
 	for (int i=0; i<frames; i++) {
 		simage(screen[i], &pixels[width*height*4*i+2*i], width, height, rx, ry, sx, sy);
 	}
-	stbi_image_free(pixels);
+	stbi_image_free(pixels);*/
+	int w, h, frames;
+	unsigned char *screen = aviewer_init(name, sx, sy, &w, &h, &frames);
 
 	for (int i=0; i<frames; i++) {
-//		printf("\033[1;1H%s", screen[i]);
 		printf("\033[1;1H");
-		pimage(screen[i], width/rx, height/ry);
+//		pimage(screen[i], width/rx, height/ry);
+		pimage(screen+i*w*h, w, h);
 
 		struct timespec req;
 		req.tv_sec  = 0;
 		req.tv_nsec = 50000000;
 		nanosleep(&req, NULL);
 	}
+	free(screen);
 }
