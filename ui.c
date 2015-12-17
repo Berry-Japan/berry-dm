@@ -98,10 +98,12 @@ int handler(void* user, const char* section, const char* name, const char* value
 #define ECLEAR()		printf("\033[2J")
 //#define ECLEAR()		printf("\033[3J")
 #define ELOCATE(x, y)		printf("\033[%d;%dH", x, y)
+#define EHIDE()			printf("\033[>5h")
+#define ESHOW()			printf("\033[>5l")
 #define ECOL(clr)		printf("\x1b[0;48;5;%um", clr)
 #define EPUT(clr)		printf("\x1b[0;48;5;%um ", clr)
 #define EDEF()			printf("\e[0m")
-#define ESEL()			printf("\e[7m")
+#define ESEL()			printf("\e[7m\e[1m")
 
 #define ERIGHT()		printf("\x1b[1C")
 #define ELEFT()			printf("\x1b[1D")
@@ -156,14 +158,18 @@ void ui(configuration *conf)
 	unsigned int cur_pos = 0;
 	unsigned int max_pos = 0;
 
+	EHIDE();
 	ECLEAR();
-	int w, h, frames, f=0;
+	int w, h, frames;
+	int px=1, py=1, f=0;
 	unsigned char *screen;
 	if (conf->s[CIMAGE]) {
 		screen = aviewer_init(conf->s[CIMAGE], width*0.4, height*0.4, &w, &h, &frames);
+		if (h>0 && h<height) py = (height-h)/2;
 	}
 	do {
-		ELOCATE(1, 1);
+		//ELOCATE(1, 1);
+		ELOCATE(py, 1);
 		if (conf->s[CTEXT]) {
 			ptext(conf->s[CTEXT]);
 		} else if (conf->s[CIMAGE]) {
@@ -173,22 +179,29 @@ void ui(configuration *conf)
 		}
 
 		time_t now = time(NULL);
-		ELOCATE(height-1, 0);
+		ELOCATE(height-1, 1);
 		printf("%s", ctime(&now));
+
+		ELOCATE(height-4, 1);
+		printf("\033[0K\n\033[0K\n\033[0K");
+		for (int i=0; i<5; i++) {
+			ELOCATE(cy-2+i*2, cx-12);
+			printf("\033[0K");
+		}
 
 		ELOCATE(cy,   cx-12);
 		if (field==0) ESEL();
-		printf(" SESSION  : %*s ", 20, conf->fields[CSESSIONS][sel[CSESSIONS]*2]);
+		printf(" SESSION  : %*s \033[0K", 20, conf->fields[CSESSIONS][sel[CSESSIONS]*2]);
 		EDEF();
 		ELOCATE(cy+2, cx-12);
 		if (field==1) ESEL();
-		printf(" USER     : %*s ", 20, conf->fields[CUSERS][sel[CUSERS]]);
+		printf(" USER     : %*s \033[0K", 20, conf->fields[CUSERS][sel[CUSERS]]);
 		EDEF();
 		ELOCATE(cy+4, cx-12);
-		printf(" PASSWORD : %*s ", 20, str);
+		printf(" PASSWORD : %*s \033[0K", 20, str);
 		ELOCATE(cy+6, cx-12);
 		if (field==2) ESEL();
-		printf(" LANGUAGE : %*s ", 20, conf->fields[CLANGUAGES][sel[CLANGUAGES]*2]);
+		printf(" LANGUAGE : %*s \033[0K", 20, conf->fields[CLANGUAGES][sel[CLANGUAGES]*2]);
 		EDEF();
 
 		c = 0;
@@ -231,22 +244,22 @@ void ui(configuration *conf)
 			if (sel[field]<0) sel[field] = conf->fields_count[field]-1;
 			break;
 		case 0x7e38325b1b:	// F7
-			system(conf->s[CF7]);
+			if (conf->s[CF7]) system(conf->s[CF7]);
 			break;
 		case 0x7e39325b1b:	// F8
-			system(conf->s[CF8]);
+			if (conf->s[CF8]) system(conf->s[CF8]);
 			break;
 		case 0x7e30325b1b:	// F9
-			system(conf->s[CF9]);
+			if (conf->s[CF9]) system(conf->s[CF9]);
 			break;
 		case 0x7e31325b1b:	// F10
-			system(conf->s[CF10]);
+			if (conf->s[CF10]) system(conf->s[CF10]);
 			break;
 		case 0x7e33325b1b:	// F11
-			system(conf->s[CF11]);
+			if (conf->s[CF11]) system(conf->s[CF11]);
 			break;
 		case 0x7e34325b1b:	// F12
-			system(conf->s[CF12]);
+			if (conf->s[CF12]) system(conf->s[CF12]);
 			break;
 		default:
 			if (cur_pos<200) {
@@ -259,6 +272,7 @@ void ui(configuration *conf)
 		free(screen);
 	}
 
+	ESHOW();
 	ECLEAR();
 	ELOCATE(1, 1);
 
