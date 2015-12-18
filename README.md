@@ -1,12 +1,13 @@
 # berry-dm: Display Manager for Berry Linux
 
-Minimalistic display manager for console.
+A minimalistic display manager for console.
 
 ## Features
 
 - Lightweight and minimalistic
-- PAM support
 - JPEG, PNG, Animated GIF, BMP support
+- Theme support
+- PAM support
 
 ## Installation
 
@@ -17,12 +18,13 @@ To run berry-dm
 To make berry-dm
 
 ```Bash
-clang -o berry-dm -Os berry-dm.c login.c ui.c 3rd/ini.c -lm -lpam -lpam_misc
-mv berry-dm /usr/local/sbin/
-cp berry-dm.pam /etc/pam.d/berry-dm
-cp berry-dm.conf /etc/
-cp berry-logo.txt /etc/
-clang -Os -o berry-getty berry-getty.c
+$ clang -o berry-dm -Os berry-dm.c login.c ui.c 3rd/ini.c -lm -lpam -lpam_misc
+# mv berry-dm /usr/local/sbin/
+$ cp berry-dm.pam /etc/pam.d/berry-dm
+$ cp berry-dm.conf /etc/
+$ cp berry-logo.txt /etc/
+$ clang -Os -o berry-getty berry-getty.c
+# mv berry-getty /usr/local/sbin/
 ```
 
 ## Configuration

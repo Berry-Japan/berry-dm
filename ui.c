@@ -50,7 +50,8 @@ int split(char *data, char *argv[], int size)
 #define CF10		8
 #define CF11		9
 #define CF12		10
-#define CNUM		11
+#define CSTATUSBAR	11
+#define CNUM		12
 typedef struct
 {
 	char* s[CNUM];
@@ -88,6 +89,8 @@ int handler(void* user, const char* section, const char* name, const char* value
 		pconfig->s[CF11] = strdup(value);
 	} else if (MATCH("config", "F12")) {
 		pconfig->s[CF12] = strdup(value);
+	} else if (MATCH("config", "statusbar")) {
+		pconfig->s[CSTATUSBAR] = strdup(value);
 	} else {
 		return 0;  /* unknown section/name, error */
 	}
@@ -168,8 +171,12 @@ void ui(configuration *conf)
 		screen = aviewer_init(conf->s[CIMAGE], width*0.4, height*0.4, &w, &h, &frames);
 		if (h>0 && h<height) py = (height-h)/2;
 	}
+	if (conf->s[CSTATUSBAR]) {
+		ELOCATE(height-1, width-strlen(conf->s[CSTATUSBAR])-1);
+		printf("%s", conf->s[CSTATUSBAR]);
+	}
 	do {
-		//ELOCATE(1, 1);
+		// image
 		ELOCATE(py, 1);
 		if (conf->s[CTEXT]) {
 			ptext(conf->s[CTEXT]);
@@ -179,10 +186,12 @@ void ui(configuration *conf)
 			if (f>=frames) f = 0;
 		}
 
+		// date
 		time_t now = time(NULL);
 		ELOCATE(height-1, 1);
 		printf("%s", ctime(&now));
 
+		// clear
 		ELOCATE(height-4, 1);
 		printf("\033[0K\n\033[0K\n\033[0K");
 		for (int i=0; i<4; i++) {
@@ -190,6 +199,7 @@ void ui(configuration *conf)
 			printf("\033[0K");
 		}
 
+		// menu
 		ELOCATE(cy,   cx-12);
 		if (field==0) ESEL();
 		printf(" SESSION  : %*s \033[0K", 20, conf->fields[CSESSIONS][sel[CSESSIONS]*2]);
@@ -222,8 +232,8 @@ void ui(configuration *conf)
 			break;
 		case 0x0a:		// Enter
 			if (authenticate("system-auth", conf->fields[CUSERS][sel[CUSERS]], str)) {
-				ELOCATE(cy+8, cx-11);
-				printf("Not Authenticated");
+				ELOCATE(cy+8, cx-4);	// (32 - 17) / 2 = 8
+				printf("\e[48;5;206;97mNot Authenticated\e[0m"); // 17 chars
 				c = 0;
 				continue;
 			}
@@ -268,6 +278,10 @@ void ui(configuration *conf)
 				str[cur_pos] = 0;
 			}
 		}
+
+		// clear the message
+		ELOCATE(cy+8, cx-12);
+		printf("\033[0K");
 	} while (/*c!=27 &&*/ c!=10);
 	if (conf->s[CIMAGE]) {
 		free(screen);
