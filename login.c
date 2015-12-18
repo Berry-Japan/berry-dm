@@ -71,15 +71,7 @@ int authenticate(char *service, char *user, char *pass)
 
 		retval = pam_authenticate(pamh, 0);
 
-		/*if (retval == PAM_SUCCESS) {
-			fprintf(stdout, "Authenticated\n");
-		} else {
-			fprintf(stdout, "Not Authenticated\n");
-		}*/
-
 		pam_end(pamh, PAM_SUCCESS);
-
-		//return ( retval == PAM_SUCCESS ? 0:1 );
 	}
 
 	return ( retval == PAM_SUCCESS ? 0:1 );
@@ -89,23 +81,12 @@ int authenticate(char *service, char *user, char *pass)
 long get_uptime()
 {
 	struct sysinfo s_info;
-	int error;
-	error = sysinfo(&s_info);
-	/*if (error != 0) {
-		printf("code error = %d\n", error);
-	}*/
+	s_info.uptime = 31;	// avoid error
+	sysinfo(&s_info);
 	return s_info.uptime;
 }
 
-char* rtrim(char* p)
-{
-	int s = (strlen(p) - 1 - 1);
-	for (; s > 0 && p[s] == 0x20; s--) ;
-	p[s + 1] = 0;
-	return p;
-}
-
-/*void set_printk(int level)
+void set_printk(int level)
 {
 	FILE *fp = fopen("/proc/sys/kernel/printk", "w");
 	if (fp) {
@@ -114,25 +95,26 @@ char* rtrim(char* p)
 		fprintf(fp, "%d\n", level);
 		fclose(fp);
 	}
-}*/
+}
 
 int main(int argc, char* argv[])
 {
 	// /bin/sh -c 'exec xinit berry-dm -- vt7'
 	if (!getenv("DM_RUN_SESSION")) {
 		// Check 'autologin'
-		FILE *fp;
 		char buff[256];
-		fp = fopen("/proc/cmdline", "r");
+		FILE *fp = fopen("/proc/cmdline", "r");
 		if (fp!=NULL) {
 			fread(buff, 256, 256, fp);
 			fclose(fp);
 		}
+
+		if (strstr(buff, "quiet")) set_printk(0);
+
 //		struct timespec t;
 //		clock_gettime(CLOCK_MONOTONIC, &t);
 		if (strstr(buff, "autologin") && get_uptime()<30/*!getenv("DM_INIT")*/) {
 //			setenv("DM_INIT", "1", 1);
-
 			setenv("DM_USER", "berry", 1);
 
 //			setenv("DM_XSESSION", "startlxde", 1);
@@ -152,9 +134,6 @@ int main(int argc, char* argv[])
 			//switch_to_vt(8);
 			dm_select();
 		}
-	//} else {
-		//setenv("DM_USER", "berry", 1);
-		//setenv("DM_XSESSION", "startlxde", 1);
 	}
 
 	dm_main(argc, argv);

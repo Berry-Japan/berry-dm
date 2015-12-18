@@ -11,8 +11,15 @@
 #define N_FIELDS	4+1
 
 // login.c
-extern char* rtrim(char* p);
 extern int authenticate(char *service, char *user, char *pass);
+
+char* rtrim(char* p)
+{
+	int s = (strlen(p) - 1 - 1);
+	for (; s > 0 && p[s] == 0x20; s--) ;
+	p[s + 1] = 0;
+	return p;
+}
 
 //#include "mya.h"
 //#include <linux/reboot.h>

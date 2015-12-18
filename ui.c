@@ -136,6 +136,7 @@ void ui(configuration *conf)
 	struct termios save;
 	tcgetattr(STDIN_FILENO, &term);
 	//ioctl(0, TCGETA, &term);
+	term.c_lflag &= ECHO;
 	save = term;
 	term.c_lflag &= ~ICANON;
 	term.c_lflag &= ~ECHO;
@@ -184,8 +185,8 @@ void ui(configuration *conf)
 
 		ELOCATE(height-4, 1);
 		printf("\033[0K\n\033[0K\n\033[0K");
-		for (int i=0; i<5; i++) {
-			ELOCATE(cy-2+i*2, cx-12);
+		for (int i=0; i<4; i++) {
+			ELOCATE(cy-1+i*2, cx-12);
 			printf("\033[0K");
 		}
 
