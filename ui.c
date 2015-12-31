@@ -135,12 +135,12 @@ void ui(configuration *conf)
 		} 
 	}
 
-	struct termios term;
-	struct termios save;
+	struct termios term, save;
+	tcgetattr(STDIN_FILENO, &save);
+	save.c_lflag &= ECHO;
 	tcgetattr(STDIN_FILENO, &term);
 	//ioctl(0, TCGETA, &term);
-	term.c_lflag &= ECHO;
-	save = term;
+//	save = term;
 	term.c_lflag &= ~ICANON;
 	term.c_lflag &= ~ECHO;
 	term.c_cc[VMIN] = 0;	// 0文字入力された時点で入力を受け取る
