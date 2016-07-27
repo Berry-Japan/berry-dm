@@ -33,5 +33,6 @@ See /etc/berry-dm.conf for example.
 
 ## Screenshot
 
-![Screenshot](screen.png)
+![Screenshot](screen02.png)
+![Screenshot](screen01.png)
 
