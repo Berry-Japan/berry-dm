@@ -1,5 +1,5 @@
 // berry-dm
-// Copyright © 2015 Yuichiro Nakada
+// Copyright © 2015-2016 Yuichiro Nakada
 
 // for Animation Gif
 typedef struct gif_result_t {
@@ -287,6 +287,10 @@ unsigned char *aviewer_init(char *name, int sx, int sy, int *w, int *h, int *fra
 	int width, height;
 
 	pixels = stbi_xload(name, &width, &height, frames);
+	if (!pixels) {
+		*w = *h = 0;
+		return 0;
+	}
 	int rx = MAX(ICEIL(width, sx), 1);
 	int ry = MAX(ICEIL(height, sy), 1);
 //	printf("%s %dx%d r[%d,%d] / Screen %d,%d\n", name, width, height, rx, ry, sx, sy);
