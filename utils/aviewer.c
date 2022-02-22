@@ -1,5 +1,5 @@
 // berry-dm
-// Copyright © 2015 Yuichiro Nakada
+// Copyright © 2015,2022 Yuichiro Nakada
 
 // clang -Os -I .. -I ../3rd/ aviewer.c -o aviewer -lm
 #include <stdio.h>
@@ -10,6 +10,8 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#define JEBP_IMPLEMENTATION
+#include "jebp.h"
 #include "image.h"
 
 #if 0

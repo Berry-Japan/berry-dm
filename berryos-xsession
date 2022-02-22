@@ -1,5 +1,5 @@
 #!/bin/sh
-#	©2010-2015 YUICHIRO NAKADA
+#	©2010-2015,2021 YUICHIRO NAKADA
 
 ### Set up i18n environment
 ##if [ -r /etc/profile.d/lang.sh ]; then
@@ -12,10 +12,14 @@ if which dbus-launch >/dev/null && test -z "$DBUS_SESSION_BUS_ADDRESS"; then
 	eval "$(dbus-launch --sh-syntax --exit-with-session)"
 fi
 # 50-xinput.sh
-export XMODIFIERS="@im=kimera"
-export GTK_IM_MODULE=xim
-export QT_IM_MODULE=xim
-kimera &
+##export XMODIFIERS="@im=kimera"
+##export GTK_IM_MODULE=xim
+##export QT_IM_MODULE=xim
+##kimera &
+##export GDK_BACKEND=wayland CLUTTER_BACKEND=wayland
+##export XMODIFIERS="@im=gim"
+export GTK_IM_MODULE=gim
+export QT_IM_MODULE=gim
 xmodmap /etc/X11/Xmodmap
 
 ## Get the parameter
