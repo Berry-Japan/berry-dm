@@ -1,18 +1,22 @@
 // berry-dm
-// Copyright © 2015-2016 Yuichiro Nakada
+// Copyright © 2015-2022 Yuichiro Nakada
+
+#ifndef uint8_t
+typedef unsigned char 	uint8_t;
+#endif
 
 // for Animation Gif
 typedef struct gif_result_t {
 	int delay;
-	unsigned char *data;
+	uint8_t *data;
 	struct gif_result_t *next;
 } gif_result;
 
-STBIDEF unsigned char *stbi_xload(char const *filename, int *x, int *y, int *frames)
+STBIDEF uint8_t *stbi_xload(char const *filename, int *x, int *y, int *frames)
 {
 	FILE *f;
 	stbi__context s;
-	unsigned char *result = 0;
+	uint8_t *result = 0;
 
 	if (!(f = stbi__fopen(filename, "rb"))) {
 		return stbi__errpuc("can't fopen", "Unable to open file");
@@ -22,66 +26,43 @@ STBIDEF unsigned char *stbi_xload(char const *filename, int *x, int *y, int *fra
 
 	if (stbi__gif_test(&s)) {
 		int c;
+//		result = stbi__load_gif_main(&s, 0, x, y, frames, &c, 4);
 		stbi__gif g;
-		gif_result head;
-		gif_result *prev = 0, *gr = &head;
-
-		memset(&g, 0, sizeof(g));
-		memset(&head, 0, sizeof(head));
+		stbi_uc *data = 0;
 
 		*frames = 0;
 
-		while ((gr->data = stbi__gif_load_next(&s, &g, &c, 4))) {
-			if (gr->data == (unsigned char*)&s) {
-				gr->data = 0;
+		while ((data = stbi__gif_load_next(&s, &g, &c, 4, 0))) {
+			if (data == (uint8_t*)&s) {
+				// end of animated gif marker
+				data = 0;
 				break;
 			}
 
-			if (prev) {
-				prev->next = gr;
-			}
-			gr->delay = g.delay;
-			prev = gr;
-			gr = (gif_result*) stbi__malloc(sizeof(gif_result));
-			memset(gr, 0, sizeof(gif_result));
 			++(*frames);
-		}
 
-		if (gr != &head) {
-			STBI_FREE(gr);
+			unsigned int size = 4 * g.w * g.h;
+			uint8_t *pp = realloc(result, (*frames) * (size + 2));
+			if (!pp) {
+				printf("err!!\n");
+				return 0;
+			}
+			result = pp;
+			uint8_t *p = result + ((*frames)-1) * (size + 2);
+			memcpy(p, data, size);
+			p += size;
+			*p++ = g.delay & 0xFF;
+			*p++ = (g.delay & 0xFF00) >> 8;
 		}
+		STBI_FREE(data);
 
 		if (*frames > 0) {
 			*x = g.w;
 			*y = g.h;
 		}
-
-		result = head.data;
-
-		if (*frames > 1) {
-			unsigned int size = 4 * g.w * g.h;
-			unsigned char *p = 0;
-
-			result = (unsigned char*)stbi__malloc(*frames * (size + 2));
-			gr = &head;
-			p = result;
-
-			while (gr) {
-				prev = gr;
-				memcpy(p, gr->data, size);
-				p += size;
-				*p++ = gr->delay & 0xFF;
-				*p++ = (gr->delay & 0xFF00) >> 8;
-				gr = gr->next;
-
-				STBI_FREE(prev->data);
-				if (prev != &head) {
-					STBI_FREE(prev);
-				}
-			}
-		}
 	} else {
-		result = stbi__load_main(&s, x, y, frames, 4);
+		stbi__result_info ri;
+		result = stbi__load_main(&s, x, y, frames, 4, &ri, 0);
 		*frames = !!result;
 	}
 
@@ -183,7 +164,7 @@ int near(int r0, int g0, int b0)
 }
 
 #if 0
-void putImage(unsigned char *pix, int width, int height, int rx, int ry, int sx, int sy)
+void putImage(uint8_t *pix, int width, int height, int rx, int ry, int sx, int sy)
 {
 	/*float rx = (float)width / sx;
 	float ry = (float)width / sy;
@@ -236,7 +217,7 @@ void putImage(unsigned char *pix, int width, int height, int rx, int ry, int sx,
 }
 #endif
 
-void simage(unsigned char *str, unsigned char *pix, int width, int height, int rx, int ry, int sx, int sy)
+void simage(uint8_t *str, uint8_t *pix, int width, int height, int rx, int ry, int sx, int sy)
 {
 	for (int y=0; y</*sy*/height/ry; y++) {
 		for (int x=0; x</*sx*/width/rx; x++) {
@@ -266,14 +247,39 @@ void simage(unsigned char *str, unsigned char *pix, int width, int height, int r
 	}
 }
 
-void pimage(unsigned char *pix, int width, int height)
+void pimage(uint8_t *pix, int width, int height)
 {
+#ifdef H_TERMBOX
+//	tb_clear();
+
+//	struct tb_cell* cell = tb_cell_buffer();
+//	int sw = tb_width();
+//	int sh = tb_height();
+
+	for (int y=0; y<height; y++) {
+		for (int x=0; x<width; x++) {
+//			struct tb_cell c = {ch, fg, bg};
+//			cell[y*sw+x] = {' ', 0, pal2rgb(*pix++)};
+
+			// true color
+/*			int col = *pix++;
+			int c = pal2rgb[col][0]*256*256 +pal2rgb[col][1]*256 +pal2rgb[col][2];
+			tb_change_cell(x, y, ' ', 0, c);*/
+
+			tb_change_cell(x, y, ' ', 0, *pix++); // 256
+		}
+	}
+
+	tb_present();
+#else
+	printf("\033[1;1H");
 	for (int y=0; y<height; y++) {
 		for (int x=0; x<width; x++) {
 			printf("\x1b[0;48;5;%um ", *pix++);
 		}
 		printf("\x1b[39m\x1b[49m\n");
 	}
+#endif
 }
 
 #define MAX(a,b) (((a) > (b)) ? (a) : (b))
@@ -281,9 +287,9 @@ void pimage(unsigned char *pix, int width, int height)
 #define ICEIL(dividend, divisor) \
 	(((dividend) + ((divisor) - 1)) / (divisor))
 
-unsigned char *aviewer_init(char *name, int sx, int sy, int *w, int *h, int *frames)
+uint8_t *aviewer_init(char *name, int sx, int sy, int *w, int *h, int *frames)
 {
-	unsigned char *pixels;
+	uint8_t *pixels;
 	int width, height;
 
 	pixels = stbi_xload(name, &width, &height, frames);
@@ -298,7 +304,7 @@ unsigned char *aviewer_init(char *name, int sx, int sy, int *w, int *h, int *fra
 
 	*w = width/rx;
 	*h = height/ry;
-	unsigned char *screen = malloc((*frames)*(*w)*(*h));
+	uint8_t *screen = malloc((*frames)*(*w)*(*h));
 	for (int i=0; i<*frames; i++) {
 		simage(screen+i*(*w)*(*h), &pixels[width*height*4*i+2*i], width, height, rx, ry, sx, sy);
 	}
@@ -309,7 +315,7 @@ unsigned char *aviewer_init(char *name, int sx, int sy, int *w, int *h, int *fra
 
 void aviewer(char *name, int sx, int sy)
 {
-	/*unsigned char *pixels;
+	/*uint8_t *pixels;
 	int width, height;, frames;
 
 	pixels = stbi_xload(name, &width, &height, &frames);
@@ -318,16 +324,15 @@ void aviewer(char *name, int sx, int sy)
 	printf("%s %dx%d r[%d,%d] / Screen %d,%d\n", name, width, height, rx, ry, sx, sy);
 	printf("frames:%d\n", frames);
 
-	unsigned char screen[frames][width/rx*height/ry];
+	uint8_t screen[frames][width/rx*height/ry];
 	for (int i=0; i<frames; i++) {
 		simage(screen[i], &pixels[width*height*4*i+2*i], width, height, rx, ry, sx, sy);
 	}
 	stbi_image_free(pixels);*/
 	int w, h, frames;
-	unsigned char *screen = aviewer_init(name, sx, sy, &w, &h, &frames);
+	uint8_t *screen = aviewer_init(name, sx, sy, &w, &h, &frames);
 
 	for (int i=0; i<frames; i++) {
-		printf("\033[1;1H");
 //		pimage(screen[i], width/rx, height/ry);
 		pimage(screen+i*w*h, w, h);
 

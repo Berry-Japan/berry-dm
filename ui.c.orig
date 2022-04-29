@@ -1,5 +1,5 @@
 // berry-dm
-// Copyright © 2015,2022 Yuichiro Nakada
+// Copyright © 2015 Yuichiro Nakada
 
 // clang -o ui ui.c 3rd/ini.c -lm
 #include <stdio.h>
@@ -8,13 +8,13 @@
 #include <math.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include "termbox.h"
+#include <termios.h>
 #include <time.h>
 #include "3rd/ini.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "3rd/stb_image.h"
-#include "aimage.h"
+#include "image.h"
 
 //#define DEBUG
 #ifdef DEBUG
@@ -97,6 +97,20 @@ int handler(void* user, const char* section, const char* name, const char* value
 	return 1;
 }
 
+#define EDEFAULT()		printf("\x1b[39m\x1b[49m")
+#define ECLEAR()		printf("\033[2J")
+//#define ECLEAR()		printf("\033[3J")
+#define ELOCATE(x, y)		printf("\033[%d;%dH", x, y)
+#define EHIDE()			printf("\033[>5h")
+#define ESHOW()			printf("\033[>5l")
+#define ECOL(clr)		printf("\x1b[0;48;5;%um", clr)
+#define EPUT(clr)		printf("\x1b[0;48;5;%um ", clr)
+#define EDEF()			printf("\e[0m")
+#define ESEL()			printf("\e[7m\e[1m")
+
+#define ERIGHT()		printf("\x1b[1C")
+#define ELEFT()			printf("\x1b[1D")
+
 void ptext(char *name)
 {
 	char buff[256];
@@ -104,7 +118,6 @@ void ptext(char *name)
 	if (!fp) return;
 	while (fgets(buff, 256, fp) != NULL) {
 		printf("%s", buff);
-//		tb_print(buff, 1, py, TB_MAGENTA | TB_BOLD, TB_DEFAULT);
 	}
 	fclose(fp);
 }
@@ -113,11 +126,27 @@ static size_t width = 80;
 static size_t height = 24;
 void ui(configuration *conf)
 {
-	tb_init();
-	tb_select_output_mode(TB_OUTPUT_256);
-	tb_clear();
-	width = tb_width();
-	height = tb_height();
+	// get terminal size
+	struct winsize ws;
+	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) != -1) {
+		if (0 < ws.ws_col && ws.ws_col == (size_t)ws.ws_col) {
+			width = ws.ws_col;
+			height = ws.ws_row;
+		} 
+	}
+
+	struct termios term, save;
+	tcgetattr(STDIN_FILENO, &save);
+	save.c_lflag &= ECHO;
+	tcgetattr(STDIN_FILENO, &term);
+	//ioctl(0, TCGETA, &term);
+//	save = term;
+	term.c_lflag &= ~ICANON;
+	term.c_lflag &= ~ECHO;
+	term.c_cc[VMIN] = 0;	// 0文字入力された時点で入力を受け取る
+	term.c_cc[VTIME] = 1;	// 何も入力がない場合、1/10秒待つ
+	tcsetattr(STDIN_FILENO, TCSANOW, &term);
+	//ioctl(0, TCSETAF, &term);
 
 	int cx = width/2 - 11/2;
 	int cy = height/2 - 4/*N_FIELDS*//2;
@@ -129,10 +158,12 @@ void ui(configuration *conf)
 	char str[256];
 	str[0] = 0;
 
-	struct tb_event ev;
+	long long c;
 	unsigned int cur_pos = 0;
 	unsigned int max_pos = 0;
 
+	EHIDE();
+	ECLEAR();
 	int w, h, frames;
 	int px=1, py=1, f=0;
 	unsigned char *screen;
@@ -140,37 +171,13 @@ void ui(configuration *conf)
 		screen = aviewer_init(conf->s[CIMAGE], width*0.4, height*0.4, &w, &h, &frames);
 		if (h>0 && h<height) py = (height-h)/2;
 	}
-
+	if (conf->s[CSTATUSBAR]) {
+		ELOCATE(height-1, width-strlen(conf->s[CSTATUSBAR])-1);
+		printf("%s", conf->s[CSTATUSBAR]);
+	}
 	do {
-		// clear
-		tb_clear();
-
-		// function key
-		if (conf->s[CSTATUSBAR]) {
-			tb_print(conf->s[CSTATUSBAR], width-strlen(conf->s[CSTATUSBAR])-1, height-2, TB_BLUE | TB_BOLD, TB_DEFAULT);
-		}
-
-		// date
-		time_t now = time(NULL);
-		tb_print(ctime(&now), 1, height-2, TB_MAGENTA | TB_BOLD, TB_DEFAULT);
-
-		// menu
-		int bg = TB_DEFAULT;
-		if (field==0) bg = TB_REVERSE;
-		tb_printf(cx-12, cy,   TB_MAGENTA | TB_BOLD, bg, " SESSION  : %*s ", 20, conf->fields[CSESSIONS][sel[CSESSIONS]*2]);
-
-		bg = TB_DEFAULT;
-		if (field==1) bg = TB_REVERSE;
-		tb_printf(cx-12, cy+2, TB_MAGENTA | TB_BOLD, bg, " USER     : %*s ", 20, conf->fields[CUSERS][sel[CUSERS]]);
-
-		tb_printf(cx-12, cy+4, TB_MAGENTA | TB_BOLD, TB_DEFAULT, " PASSWORD : %*s ", 20, str);
-
-		bg = TB_DEFAULT;
-		if (field==2) bg = TB_REVERSE;
-		tb_printf(cx-12, cy+6, TB_MAGENTA | TB_BOLD, bg, " LANGUAGE : %*s ", 20, conf->fields[CLANGUAGES][sel[CLANGUAGES]*2]);
-
 		// image
-//		ELOCATE(py, 1);
+		ELOCATE(py, 1);
 		if (conf->s[CTEXT]) {
 			ptext(conf->s[CTEXT]);
 		} else if (conf->s[CIMAGE]) {
@@ -179,95 +186,114 @@ void ui(configuration *conf)
 			if (f>=frames) f = 0;
 		}
 
-		// input
-		int e = tb_peek_event(&ev, 100);
-		if (e == -1) continue;
-		if (e != TB_EVENT_KEY) continue;
-#ifdef DEBUG
-		if (ev.key == TB_KEY_ESC) break;
-//		tb_printf(1, height-3, TB_MAGENTA | TB_BOLD, TB_DEFAULT, "key:%x ch:%c", ev.key, ev.ch);
-//		tb_present();
-#endif
+		// date
+		time_t now = time(NULL);
+		ELOCATE(height-1, 1);
+		printf("%s", ctime(&now));
 
-//		ELOCATE(cy+4, cx+cur_pos);
-		switch (ev.key) {
+		// clear
+		ELOCATE(height-4, 1);
+		printf("\033[0K\n\033[0K\n\033[0K");
+		for (int i=0; i<4; i++) {
+			ELOCATE(cy-1+i*2, cx-12);
+			printf("\033[0K");
+		}
+
+		// menu
+		ELOCATE(cy,   cx-12);
+		if (field==0) ESEL();
+		printf(" SESSION  : %*s \033[0K", 20, conf->fields[CSESSIONS][sel[CSESSIONS]*2]);
+		EDEF();
+		ELOCATE(cy+2, cx-12);
+		if (field==1) ESEL();
+		printf(" USER     : %*s \033[0K", 20, conf->fields[CUSERS][sel[CUSERS]]);
+		EDEF();
+		ELOCATE(cy+4, cx-12);
+		printf(" PASSWORD : %*s \033[0K", 20, str);
+		ELOCATE(cy+6, cx-12);
+		if (field==2) ESEL();
+		printf(" LANGUAGE : %*s \033[0K", 20, conf->fields[CLANGUAGES][sel[CLANGUAGES]*2]);
+		EDEF();
+
+		c = 0;
+		read(0, &c, 8);
+
+		ELOCATE(cy+4, cx+cur_pos);
+		switch (c) {
+		case -1:
+		case 0:
 		case 0x1b:		// Esc
 			continue;
-		case TB_KEY_BACKSPACE:	// Back space 0x8
-		case TB_KEY_BACKSPACE2:	// 0x7f
+		case 0x7f:		// Back space
 			if (cur_pos!=0) {
 				cur_pos--;
 				str[cur_pos] = 0;
 			}
 			break;
-		case TB_KEY_ENTER:	// Enter
-//			tb_print("Authenticating", cx-4, cy+8, TB_MAGENTA | TB_BOLD, TB_DEFAULT);
+		case 0x0a:		// Enter
 			if (authenticate("system-auth", conf->fields[CUSERS][sel[CUSERS]], str)) {
-//				ELOCATE(cy+8, cx-4);	// (32 - 17) / 2 = 8
-//				printf("\e[48;5;206;97mNot Authenticated\e[0m"); // 17 chars
-				tb_print("Not Authenticated", cx-4, cy+8, TB_RED | TB_BOLD, TB_DEFAULT);
-				tb_present();
-
-				ev.key = 0; // avoid exit
-
-				struct timespec req;
-				req.tv_sec  = 0;
-				req.tv_nsec = 500000000;
-				nanosleep(&req, NULL);
-
-//				cur_pos = 0; // clear
-//				str[cur_pos] = 0;
+				ELOCATE(cy+8, cx-4);	// (32 - 17) / 2 = 8
+				printf("\e[48;5;206;97mNot Authenticated\e[0m"); // 17 chars
+				c = 0;
 				continue;
 			}
 			break;
-		case TB_KEY_ARROW_UP:	// Up
+		case 0x415b1b:		// Up
 			field--;
 			if (field<0) field = 2;
 			break;
-		case TB_KEY_ARROW_DOWN:	// Down
+		case 0x425b1b:		// Down
 			field++;
 			if (field>2) field = 0;
 			break;
-		case TB_KEY_ARROW_RIGHT:// Right
+		case 0x435b1b:		// Right
 			sel[field]++;
 			if (sel[field]>=conf->fields_count[field]) sel[field] = 0;
 			break;
-		case TB_KEY_ARROW_LEFT:	// Left
+		case 0x445b1b:		// Left
 			sel[field]--;
 			if (sel[field]<0) sel[field] = conf->fields_count[field]-1;
 			break;
-		case TB_KEY_F7:		// F7
+		case 0x7e38325b1b:	// F7
 			if (conf->s[CF7]) system(conf->s[CF7]);
 			break;
-		case TB_KEY_F8:		// F8
+		case 0x7e39325b1b:	// F8
 			if (conf->s[CF8]) system(conf->s[CF8]);
 			break;
-		case TB_KEY_F9:		// F9
+		case 0x7e30325b1b:	// F9
 			if (conf->s[CF9]) system(conf->s[CF9]);
 			break;
-		case TB_KEY_F10:	// F10
+		case 0x7e31325b1b:	// F10
 			if (conf->s[CF10]) system(conf->s[CF10]);
 			break;
-		case TB_KEY_F11:	// F11
+		case 0x7e33325b1b:	// F11
 			if (conf->s[CF11]) system(conf->s[CF11]);
 			break;
-		case TB_KEY_F12:	// F12
+		case 0x7e34325b1b:	// F12
 			if (conf->s[CF12]) system(conf->s[CF12]);
 			break;
 		default:
-			if (cur_pos<200 && ev.ch) {
-//				str[cur_pos++] = ev.key;
-				str[cur_pos++] = ev.ch;
+			if (cur_pos<200) {
+				str[cur_pos++] = c;
 				str[cur_pos] = 0;
 			}
 		}
 
-	} while (ev.key!=TB_KEY_ENTER);
+		// clear the message
+		ELOCATE(cy+8, cx-12);
+		printf("\033[0K");
+	} while (/*c!=27 &&*/ c!=10);
 	if (conf->s[CIMAGE]) {
 		free(screen);
 	}
 
-	tb_shutdown();
+	ESHOW();
+	ECLEAR();
+	ELOCATE(1, 1);
+
+        EDEFAULT();
+	tcsetattr(STDIN_FILENO, TCSANOW, &save);
+	//ioctl(0, TCSETAF, &save);
 
 #ifndef DEBUG
 	char *p = conf->fields[CSESSIONS][sel[CSESSIONS]*2+1];
