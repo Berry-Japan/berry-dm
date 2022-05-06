@@ -30,6 +30,7 @@ STBIDEF uint8_t *stbi_xload(char const *filename, int *x, int *y, int *frames)
 		stbi__gif g;
 		stbi_uc *data = 0;
 
+		memset(&g, 0, sizeof(g)); // important!!
 		*frames = 0;
 
 		while ((data = stbi__gif_load_next(&s, &g, &c, 4, 0))) {
@@ -44,7 +45,7 @@ STBIDEF uint8_t *stbi_xload(char const *filename, int *x, int *y, int *frames)
 			unsigned int size = 4 * g.w * g.h;
 			uint8_t *pp = realloc(result, (*frames) * (size + 2));
 			if (!pp) {
-				printf("err!!\n");
+				printf("err at realloc!!\n");
 				return 0;
 			}
 			result = pp;
@@ -247,31 +248,24 @@ void simage(uint8_t *str, uint8_t *pix, int width, int height, int rx, int ry, i
 	}
 }
 
-void pimage(uint8_t *pix, int width, int height)
+void pimage(uint8_t *pix, int cx, int cy, int width, int height)
 {
 #ifdef H_TERMBOX
-//	tb_clear();
-
-//	struct tb_cell* cell = tb_cell_buffer();
-//	int sw = tb_width();
-//	int sh = tb_height();
-
 	for (int y=0; y<height; y++) {
 		for (int x=0; x<width; x++) {
-//			struct tb_cell c = {ch, fg, bg};
-//			cell[y*sw+x] = {' ', 0, pal2rgb(*pix++)};
-
 			// true color
 /*			int col = *pix++;
 			int c = pal2rgb[col][0]*256*256 +pal2rgb[col][1]*256 +pal2rgb[col][2];
 			tb_change_cell(x, y, ' ', 0, c);*/
-
-			tb_change_cell(x, y, ' ', 0, *pix++); // 256
+#ifdef USE_HALF_BLOCKS
+			tb_pixel(cx+x, cy+y, *pix++); // half-blocks
+#else
+			tb_change_cell(cx+x, cy+y, ' ', 0, *pix++); // 256
+#endif
 		}
 	}
-
-	tb_present();
 #else
+	printf("\033[%d;%dH", cx, cy);
 	printf("\033[1;1H");
 	for (int y=0; y<height; y++) {
 		for (int x=0; x<width; x++) {
@@ -333,8 +327,14 @@ void aviewer(char *name, int sx, int sy)
 	uint8_t *screen = aviewer_init(name, sx, sy, &w, &h, &frames);
 
 	for (int i=0; i<frames; i++) {
+#ifdef H_TERMBOX
+		tb_clear();
+#endif
 //		pimage(screen[i], width/rx, height/ry);
-		pimage(screen+i*w*h, w, h);
+		pimage(screen+i*w*h, 0, 0, w, h);
+#ifdef H_TERMBOX
+		tb_present();
+#endif
 
 		struct timespec req;
 		req.tv_sec  = 0;

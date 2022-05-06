@@ -8,7 +8,10 @@
 #include <math.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#define TB_IMPL
+#define TB_OPT_V1_COMPAT
 #include "termbox.h"
+#include "termbox_fire.h"
 #include <time.h>
 #include "3rd/ini.h"
 
@@ -52,8 +55,7 @@ int split(char *data, char *argv[], int size)
 #define CF12		10
 #define CSTATUSBAR	11
 #define CNUM		12
-typedef struct
-{
+typedef struct {
 	char* s[CNUM];
 	int fields_count[3];
 	char* fields[3][CNUM];
@@ -63,7 +65,7 @@ int handler(void* user, const char* section, const char* name, const char* value
 {
 	configuration* pconfig = (configuration*)user;
 
-	#define MATCH(s, n) strcmp(section, s) == 0 && strcmp(name, n) == 0
+#define MATCH(s, n) strcmp(section, s) == 0 && strcmp(name, n) == 0
 	if (MATCH("config", "sessions")) {
 		pconfig->s[CSESSIONS] = strdup(value);
 		pconfig->fields_count[CSESSIONS] = split(pconfig->s[CSESSIONS], pconfig->fields[CSESSIONS], 10);
@@ -101,7 +103,9 @@ void ptext(char *name)
 {
 	char buff[256];
 	FILE *fp = fopen(name, "r");
-	if (!fp) return;
+	if (!fp) {
+		return;
+	}
 	while (fgets(buff, 256, fp) != NULL) {
 		printf("%s", buff);
 //		tb_print(buff, 1, py, TB_MAGENTA | TB_BOLD, TB_DEFAULT);
@@ -109,19 +113,10 @@ void ptext(char *name)
 	fclose(fp);
 }
 
-static size_t width = 80;
-static size_t height = 24;
+static size_t width;// = 80;
+static size_t height;// = 24;
 void ui(configuration *conf)
 {
-	tb_init();
-	tb_select_output_mode(TB_OUTPUT_256);
-	tb_clear();
-	width = tb_width();
-	height = tb_height();
-
-	int cx = width/2 - 11/2;
-	int cy = height/2 - 4/*N_FIELDS*//2;
-
 	int field = 1;
 	int sel[3];
 	sel[0] = sel[1] = sel[2] = 0;
@@ -133,58 +128,106 @@ void ui(configuration *conf)
 	unsigned int cur_pos = 0;
 	unsigned int max_pos = 0;
 
+	tb_init();
+	tb_select_output_mode(TB_OUTPUT_256);
+//	tb_clear();
+
+	struct term_buf buf;
+	buf.width = tb_width();
+	buf.height = tb_height();
+	fire_init(&buf);
+
 	int w, h, frames;
 	int px=1, py=1, f=0;
-	unsigned char *screen;
-	if (conf->s[CIMAGE]) {
-		screen = aviewer_init(conf->s[CIMAGE], width*0.4, height*0.4, &w, &h, &frames);
-		if (h>0 && h<height) py = (height-h)/2;
-	}
-
+	unsigned char *screen = 0;
+	int cx, cy;
 	do {
+		// screen size
+		int sw = tb_width();
+		int sh = tb_height();
+		if (sw!=width || sh!=height) {
+			width = sw;
+			height = sh;
+
+			cx = width/2 - 11/2;
+			cy = height/2 - 4/*N_FIELDS*//2;
+
+			if (conf->s[CIMAGE]) {
+				if (screen) {
+					free(screen);
+				}
+				screen = aviewer_init(conf->s[CIMAGE], width*0.4, height*0.4, &w, &h, &frames);
+				if (h>0 && h<height) {
+					py = (height-h)/2;        // center
+				}
+			}
+		}
+
 		// clear
 		tb_clear();
+		fire(&buf);
 
 		// function key
 		if (conf->s[CSTATUSBAR]) {
-			tb_print(conf->s[CSTATUSBAR], width-strlen(conf->s[CSTATUSBAR])-1, height-2, TB_BLUE | TB_BOLD, TB_DEFAULT);
+			tb_print(width-strlen(conf->s[CSTATUSBAR])-1, height-2, TB_BLUE | TB_BOLD, TB_DEFAULT, conf->s[CSTATUSBAR]);
 		}
 
 		// date
 		time_t now = time(NULL);
-		tb_print(ctime(&now), 1, height-2, TB_MAGENTA | TB_BOLD, TB_DEFAULT);
+		tb_print(1, height-2, TB_MAGENTA | TB_BOLD, TB_DEFAULT, ctime(&now));
 
 		// menu
 		int bg = TB_DEFAULT;
-		if (field==0) bg = TB_REVERSE;
-		tb_printf(cx-12, cy,   TB_MAGENTA | TB_BOLD, bg, " SESSION  : %*s ", 20, conf->fields[CSESSIONS][sel[CSESSIONS]*2]);
+		if (field==0) {
+			bg = TB_REVERSE;
+		}
+		tb_printf(cx-12, cy,   0, bg, " SESSION  : %*s ", 20, conf->fields[CSESSIONS][sel[CSESSIONS]*2]);
 
 		bg = TB_DEFAULT;
-		if (field==1) bg = TB_REVERSE;
-		tb_printf(cx-12, cy+2, TB_MAGENTA | TB_BOLD, bg, " USER     : %*s ", 20, conf->fields[CUSERS][sel[CUSERS]]);
+		if (field==1) {
+			bg = TB_REVERSE;
+		}
+		tb_printf(cx-12, cy+2, 0, bg, " USER     : %*s ", 20, conf->fields[CUSERS][sel[CUSERS]]);
 
-		tb_printf(cx-12, cy+4, TB_MAGENTA | TB_BOLD, TB_DEFAULT, " PASSWORD : %*s ", 20, str);
+		tb_printf(cx-12, cy+4, 0, TB_DEFAULT, " PASSWORD : %*s ", 20, str);
 
 		bg = TB_DEFAULT;
-		if (field==2) bg = TB_REVERSE;
-		tb_printf(cx-12, cy+6, TB_MAGENTA | TB_BOLD, bg, " LANGUAGE : %*s ", 20, conf->fields[CLANGUAGES][sel[CLANGUAGES]*2]);
+		if (field==2) {
+			bg = TB_REVERSE;
+		}
+		tb_printf(cx-12, cy+6, 0, bg, " LANGUAGE : %*s ", 20, conf->fields[CLANGUAGES][sel[CLANGUAGES]*2]);
 
 		// image
-//		ELOCATE(py, 1);
 		if (conf->s[CTEXT]) {
 			ptext(conf->s[CTEXT]);
 		} else if (conf->s[CIMAGE]) {
-			pimage(screen+f*w*h, w, h);
+//			tb_print("animation!", cx-4, cy+8, TB_RED | TB_BOLD, TB_DEFAULT);
+			pimage(screen+f*w*h, 1, py, w, h);
 			f++;
-			if (f>=frames) f = 0;
+			if (f>=frames) {
+				f = 0;
+			}
+		}
+		tb_present();
+
+		static int timer = 0;
+		if (++timer>10000) {
+			send_clear();
+			timer = 0;
 		}
 
 		// input
 		int e = tb_peek_event(&ev, 100);
-		if (e == -1) continue;
-		if (e != TB_EVENT_KEY) continue;
+		if (e == -1) {
+			continue;
+		}
+		if (ev.type != TB_EVENT_KEY) {
+			continue;
+		}
 #ifdef DEBUG
-		if (ev.key == TB_KEY_ESC) break;
+		if (ev.key == TB_KEY_ESC) {
+			break;
+		}
 //		tb_printf(1, height-3, TB_MAGENTA | TB_BOLD, TB_DEFAULT, "key:%x ch:%c", ev.key, ev.ch);
 //		tb_present();
 #endif
@@ -205,7 +248,7 @@ void ui(configuration *conf)
 			if (authenticate("system-auth", conf->fields[CUSERS][sel[CUSERS]], str)) {
 //				ELOCATE(cy+8, cx-4);	// (32 - 17) / 2 = 8
 //				printf("\e[48;5;206;97mNot Authenticated\e[0m"); // 17 chars
-				tb_print("Not Authenticated", cx-4, cy+8, TB_RED | TB_BOLD, TB_DEFAULT);
+				tb_print(cx-4, cy+8, TB_RED | TB_BOLD, TB_DEFAULT, "Not Authenticated");
 				tb_present();
 
 				ev.key = 0; // avoid exit
@@ -222,37 +265,57 @@ void ui(configuration *conf)
 			break;
 		case TB_KEY_ARROW_UP:	// Up
 			field--;
-			if (field<0) field = 2;
+			if (field<0) {
+				field = 2;
+			}
 			break;
 		case TB_KEY_ARROW_DOWN:	// Down
 			field++;
-			if (field>2) field = 0;
+			if (field>2) {
+				field = 0;
+			}
 			break;
 		case TB_KEY_ARROW_RIGHT:// Right
 			sel[field]++;
-			if (sel[field]>=conf->fields_count[field]) sel[field] = 0;
+			if (sel[field]>=conf->fields_count[field]) {
+				sel[field] = 0;
+			}
 			break;
 		case TB_KEY_ARROW_LEFT:	// Left
 			sel[field]--;
-			if (sel[field]<0) sel[field] = conf->fields_count[field]-1;
+			if (sel[field]<0) {
+				sel[field] = conf->fields_count[field]-1;
+			}
 			break;
 		case TB_KEY_F7:		// F7
-			if (conf->s[CF7]) system(conf->s[CF7]);
+			if (conf->s[CF7]) {
+				system(conf->s[CF7]);
+			}
 			break;
 		case TB_KEY_F8:		// F8
-			if (conf->s[CF8]) system(conf->s[CF8]);
+			if (conf->s[CF8]) {
+				system(conf->s[CF8]);
+			}
 			break;
 		case TB_KEY_F9:		// F9
-			if (conf->s[CF9]) system(conf->s[CF9]);
+			if (conf->s[CF9]) {
+				system(conf->s[CF9]);
+			}
 			break;
 		case TB_KEY_F10:	// F10
-			if (conf->s[CF10]) system(conf->s[CF10]);
+			if (conf->s[CF10]) {
+				system(conf->s[CF10]);
+			}
 			break;
 		case TB_KEY_F11:	// F11
-			if (conf->s[CF11]) system(conf->s[CF11]);
+			if (conf->s[CF11]) {
+				system(conf->s[CF11]);
+			}
 			break;
 		case TB_KEY_F12:	// F12
-			if (conf->s[CF12]) system(conf->s[CF12]);
+			if (conf->s[CF12]) {
+				system(conf->s[CF12]);
+			}
 			break;
 		default:
 			if (cur_pos<200 && ev.ch) {
@@ -263,10 +326,11 @@ void ui(configuration *conf)
 		}
 
 	} while (ev.key!=TB_KEY_ENTER);
+
 	if (conf->s[CIMAGE]) {
 		free(screen);
 	}
-
+	fire_free(&buf);
 	tb_shutdown();
 
 #ifndef DEBUG
@@ -288,7 +352,9 @@ void ui(configuration *conf)
 void dm_select()
 {
 	configuration config;
-	for (int i=0; i<CNUM; i++) config.s[i] = 0;
+	for (int i=0; i<CNUM; i++) {
+		config.s[i] = 0;
+	}
 	config.fields_count[CSESSIONS] = 4;
 	config.fields[CSESSIONS][0] = "LXDE";
 	config.fields[CSESSIONS][1] = "/etc/X11/berryos-xsession";
@@ -313,7 +379,9 @@ void dm_select()
 
 	ui(&config);
 
-	for (int i=0; i<CNUM; i++) if (config.s[i]) free(config.s[i]);
+	for (int i=0; i<CNUM; i++) if (config.s[i]) {
+			free(config.s[i]);
+		}
 //	return 0;
 }
 

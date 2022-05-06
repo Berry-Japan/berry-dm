@@ -282,7 +282,7 @@ void ui(configuration *conf)
 		// clear the message
 		ELOCATE(cy+8, cx-12);
 		printf("\033[0K");
-	} while (/*c!=27 &&*/ c!=10);
+	} while (/*c!=27 &&*/ c!=10/*Enter*/);
 	if (conf->s[CIMAGE]) {
 		free(screen);
 	}
