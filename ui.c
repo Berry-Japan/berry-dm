@@ -142,10 +142,21 @@ void ui(configuration *conf)
 	unsigned char *screen = 0;
 	int cx, cy;
 	do {
+		// clear
+		tb_clear();
+
 		// screen size
 		int sw = tb_width();
 		int sh = tb_height();
 		if (sw!=width || sh!=height) {
+//			fire_free(&buf);
+/*			tb_shutdown();
+			tb_init();
+			tb_select_output_mode(TB_OUTPUT_256);*/
+//			buf.width = tb_width();
+//			buf.height = tb_height();
+//			fire_init(&buf);
+
 			width = sw;
 			height = sh;
 
@@ -161,11 +172,43 @@ void ui(configuration *conf)
 					py = (height-h)/2;        // center
 				}
 			}
+		/*} else {
+			struct tb_cell* c = tb_cell_buffer();
+			for (int y=0; y<height; y++) {
+				for (int x=0; x<width; x++) {
+					c->ch = ' ';
+//					c->fg = 0;
+//					c->fg = 16 + x*216/width;
+//					c->bg = 16 + y*216/height
+					c->bg = 16 +1+ y*16/height *6;
+//					c->fg = (x*16/width)<<4;
+//					c->bg = (y*32/height)<<3;
+					c++;
+				}
+			}*/
 		}
 
-		// clear
-		tb_clear();
+/*		static int timer = 0;
+		if (++timer>10) {
+//			send_clear();
+			printf("\033[0m\033[2J");
+			timer = 0;
+		}*/
+
+		// animation
 		fire(&buf);
+
+		// image
+		if (conf->s[CTEXT]) {
+			ptext(conf->s[CTEXT]);
+		} else if (conf->s[CIMAGE]) {
+//			tb_print("animation!", cx-4, cy+8, TB_RED | TB_BOLD, TB_DEFAULT);
+			pimage(screen+f*w*h, 1, py, w, h);
+			f++;
+			if (f>=frames) {
+				f = 0;
+			}
+		}
 
 		// function key
 		if (conf->s[CSTATUSBAR]) {
@@ -197,24 +240,8 @@ void ui(configuration *conf)
 		}
 		tb_printf(cx-12, cy+6, 0, bg, " LANGUAGE : %*s ", 20, conf->fields[CLANGUAGES][sel[CLANGUAGES]*2]);
 
-		// image
-		if (conf->s[CTEXT]) {
-			ptext(conf->s[CTEXT]);
-		} else if (conf->s[CIMAGE]) {
-//			tb_print("animation!", cx-4, cy+8, TB_RED | TB_BOLD, TB_DEFAULT);
-			pimage(screen+f*w*h, 1, py, w, h);
-			f++;
-			if (f>=frames) {
-				f = 0;
-			}
-		}
+		// show
 		tb_present();
-
-		static int timer = 0;
-		if (++timer>10000) {
-			send_clear();
-			timer = 0;
-		}
 
 		// input
 		int e = tb_peek_event(&ev, 100);
@@ -349,6 +376,7 @@ void ui(configuration *conf)
 #endif
 }
 
+#include <sys/klog.h>
 void dm_select()
 {
 	configuration config;
@@ -377,11 +405,11 @@ void dm_select()
 	config.fields_count[CSESSIONS] /= 2;
 	config.fields_count[CLANGUAGES] /= 2;
 
+	klogctl(6/*SYSLOG_ACTION_CONSOLE_OFF*/, 0, 0);
 	ui(&config);
+	klogctl(7/*SYSLOG_ACTION_CONSOLE_ON*/, 0, 0);
 
-	for (int i=0; i<CNUM; i++) if (config.s[i]) {
-			free(config.s[i]);
-		}
+	for (int i=0; i<CNUM; i++) if (config.s[i]) free(config.s[i]);
 //	return 0;
 }
 

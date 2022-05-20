@@ -311,6 +311,7 @@ void ui(configuration *conf)
 #endif
 }
 
+#include <sys/klog.h>
 void dm_select()
 {
 	configuration config;
@@ -337,7 +338,9 @@ void dm_select()
 	config.fields_count[CSESSIONS] /= 2;
 	config.fields_count[CLANGUAGES] /= 2;
 
+	klogctl(6/*SYSLOG_ACTION_CONSOLE_OFF*/, 0, 0);
 	ui(&config);
+	klogctl(7/*SYSLOG_ACTION_CONSOLE_ON*/, 0, 0);
 
 	for (int i=0; i<CNUM; i++) if (config.s[i]) free(config.s[i]);
 //	return 0;
