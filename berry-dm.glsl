@@ -541,6 +541,14 @@ vec3 print5x7float(float num, vec2 uv, int wholecount, int decimalcount)
 	return char5x7(ch, fract(cuv)*vec2(6, 8.));
 }
 
+float getData(int pos)
+{
+//	return texture(iChannel3, vec2((float(pos) + 0.5) / 256., .5/1.)).r;
+	return texture(iChannel3, vec2((float(pos) + 0.5) / 256., .5/3.)).r;
+//	pos += 65;
+//	return texture(iChannel0, vec2((float(pos) + 0.5) / 256., .5/3.)).r;
+}
+
 int sel = 0;
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord)
@@ -575,13 +583,15 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
 		// MENU
 		line -= YPOS;
 		column -= XPOS;
-		int char = menu[line*COLUMN + column];
+//		int char = menu[line*COLUMN + column];
+		int char = int(getData(line*COLUMN +column)*255.)-32;
 		col = char5x7(char, mod(uv*vec2(6*12, 8), vec2(6, 8)));
 
 		if (sel*2 == line) col = 1.0 - col; // selected
 	} else if (line==20) {
 		// statusbar
-		col = char5x7(statusbar[column], mod(uv*vec2(6*12, 8), vec2(6, 8)));
+//		col = char5x7(statusbar[column], mod(uv*vec2(6*12, 8), vec2(6, 8)));
+		col = char5x7(int(getData(column)*255.)-32, mod(uv*vec2(6*12, 8), vec2(6, 8)));
 
 		// date
 /*		int value = 0;
@@ -592,81 +602,6 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
 		//else value = int(iDate.y);*/
 //		col = vec3(print5x7int(value, uv, 12, -16));
 	}
-
-	// If we are outside the area, just make the pixel black.
-/*	if (line < 0 || line > 9 || column < 0 || column > 24) {
-		;
-	} else if (column < 12) {
-		// First 3 lines are just a floating point number.
-		if (line < 3) {
-			float value = 0.0;
-			switch (line) {
-			case 0: value = iTime; break;
-			case 1: value = -1234.9876; break;
-			case 2: value = 12345.0; break;
-			}
-			col = vec3(print5x7float(value, uv, 7, 4));
-		}
-		else if( line < 9 )
-		{
-		// Next 6 lines are the mouse x, y, last click x, y.
-		if( column > 6 )
-		{
-		line -= 3;
-		int value = 0;
-		switch( line )
-		{
-		case 0: value = int(iResolution.x); break;
-		case 1: value = int(iResolution.y); break;
-		case 2: value = int(iMouse.x); break;
-		case 3: value = int(iMouse.y); break;
-		case 4: value = int(iMouse.z); break;
-		case 5: value = int(iMouse.w); break;
-		}
-		// Print the integer value.
-		col = vec3( print5x7int( value, uv, 12, -16 ) );
-		}
-		else
-		{
-		// Some other random characters.
-		int char = (line-4) * 7 + column+63;
-		if( line > 3 )
-		col = char5x7( char, mod(uv*vec2(6*12,8),vec2(6,8)) );
-		}
-		}
-		else
-		{
-		// Otherwise just print a number.
-		col = vec3( print5x7intzl( 12345, uv, 12 ) );
-		}
-	} else {
-		// Shift the columns back over.
-		column -=12;*/
-
-/*		// Plain text prompts
-		ivec4 lines[10] = ivec4[10]( 
-		ivec4( _T, _I, _M, _E ),
-		ivec4( _N, _E, _G, 0 ),
-		ivec4( _P, _O, _S, 0 ),
-		ivec4( _X, _R, _E, _S ),
-		ivec4( _Y, _R, _E, _S ),
-		ivec4( _M, _O, _V, _X ),
-		ivec4( _M, _O, _V, _Y ),
-		ivec4( _R, _E, _L, _X ),
-		ivec4( _R, _E, _L, _Y ),
-		ivec4( _I, _N, _T, 0 )
-		);
-
-		int char = 0;
-
-		if (column <= 0) char = 0;                     // The first char is 0.
-		else if (column < 5) char = lines[line][column-1]; // Read the chars from our table.
-		else if (column < 13 && column > 5) char = line * 7 + column - 6; // Otherwise, start printing some ascii codes.
-		col = char5x7(char, mod(uv*vec2(6*12, 8), vec2(6, 8)));*/
-
-/*		int char = (column <= 0 || column > 10) ? 0 : str[line*10 + column-1];
-		col = char5x7(char, mod(uv*vec2(6*12, 8), vec2(6, 8)));
-	}*/
 
 	// Output to screen
 //	fragColor = vec4(col, 1.0);
