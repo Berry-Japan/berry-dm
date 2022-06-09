@@ -8,16 +8,16 @@
 #include <math.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#define TB_IMPL
+#define TB_OPT_V1_COMPAT
+#include "termbox.h"
+#include "termbox_fire.h"
 #include <time.h>
 #include "3rd/ini.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "3rd/stb_image.h"
-
-#define CONFIG		"/etc/berry-dm.conf"
-#define GLSL		"/etc/berry-dm.glsl"
-#include "ui.h"
-//#include "ui_termbox.h"
+#include "aimage.h"
 
 //#define DEBUG
 #ifdef DEBUG
@@ -29,6 +29,8 @@ int authenticate(char *service, char *user, char *pass)
 // login.c
 extern int authenticate(char *service, char *user, char *pass);
 #endif
+
+#define CONFIG		"/etc/berry-dm.conf"
 
 int split(char *data, char *argv[], int size)
 {
@@ -97,12 +99,22 @@ int handler(void* user, const char* section, const char* name, const char* value
 	return 1;
 }
 
-#define COLUMN		30
-#define MAXCOLUMN	60
-static char data[256*3];
+void ptext(char *name)
+{
+	char buff[256];
+	FILE *fp = fopen(name, "r");
+	if (!fp) {
+		return;
+	}
+	while (fgets(buff, 256, fp) != NULL) {
+		printf("%s", buff);
+//		tb_print(buff, 1, py, TB_MAGENTA | TB_BOLD, TB_DEFAULT);
+	}
+	fclose(fp);
+}
 
-static size_t width = 60;
-static size_t height = 24;
+static size_t width;// = 80;
+static size_t height;// = 24;
 void ui(configuration *conf)
 {
 	int field = 1;
@@ -112,149 +124,241 @@ void ui(configuration *conf)
 	char str[256];
 	str[0] = 0;
 
+	struct tb_event ev;
 	unsigned int cur_pos = 0;
 	unsigned int max_pos = 0;
+
+	tb_init();
+	tb_select_output_mode(TB_OUTPUT_256);
+//	tb_clear();
+
+	struct term_buf buf;
+	buf.width = tb_width();
+	buf.height = tb_height();
+	fire_init(&buf);
 
 	int w, h, frames;
 	int px=1, py=1, f=0;
 	unsigned char *screen = 0;
-//	int cx, cy;
-	int count = 0;
-	uint64_t c = 0; // key
-	ui_init();
-	memset(data, 32, sizeof(data));
+	int cx, cy;
 	do {
-		// image
-		if (conf->s[CTEXT]) {
-//			ptext(conf->s[CTEXT]);
-		} else if (conf->s[CIMAGE]) {
-//			pimage(screen+f*w*h, 1, py, w, h);
-			f++;
-			if (f>=frames) f = 0;
+		// clear
+		tb_clear();
+
+		// screen size
+		int sw = tb_width();
+		int sh = tb_height();
+		if (sw!=width || sh!=height) {
+//			fire_free(&buf);
+/*			tb_shutdown();
+			tb_init();
+			tb_select_output_mode(TB_OUTPUT_256);*/
+//			buf.width = tb_width();
+//			buf.height = tb_height();
+//			fire_init(&buf);
+
+			width = sw;
+			height = sh;
+
+			cx = width/2 - 11/2;
+			cy = height/2 - 4/*N_FIELDS*//2;
+
+			if (conf->s[CIMAGE]) {
+				if (screen) {
+					free(screen);
+				}
+				screen = aviewer_init(conf->s[CIMAGE], width*0.4, height*0.4, &w, &h, &frames);
+				if (h>0 && h<height) {
+					py = (height-h)/2;        // center
+				}
+			}
+		/*} else {
+			struct tb_cell* c = tb_cell_buffer();
+			for (int y=0; y<height; y++) {
+				for (int x=0; x<width; x++) {
+					c->ch = ' ';
+//					c->fg = 0;
+//					c->fg = 16 + x*216/width;
+//					c->bg = 16 + y*216/height
+					c->bg = 16 +1+ y*16/height *6;
+//					c->fg = (x*16/width)<<4;
+//					c->bg = (y*32/height)<<3;
+					c++;
+				}
+			}*/
 		}
 
-		// message
-		if (count) {
-			count--;
-			if (count==1) memset(data, 32, sizeof(data));
+/*		static int timer = 0;
+		if (++timer>10) {
+//			send_clear();
+			printf("\033[0m\033[2J");
+			timer = 0;
+		}*/
+
+		// animation
+		fire(&buf);
+
+		// image
+		if (conf->s[CTEXT]) {
+			ptext(conf->s[CTEXT]);
+		} else if (conf->s[CIMAGE]) {
+//			tb_print("animation!", cx-4, cy+8, TB_RED | TB_BOLD, TB_DEFAULT);
+			pimage(screen+f*w*h, 1, py, w, h);
+			f++;
+			if (f>=frames) {
+				f = 0;
+			}
 		}
 
 		// function key
 		if (conf->s[CSTATUSBAR]) {
-//			sprintf(&data[1 +COLUMN*7 +width +(width-strlen(conf->s[CSTATUSBAR])-1)], "%s", conf->s[CSTATUSBAR]);
-			sprintf(&data[1 +COLUMN*8 +width], "%*s", width, conf->s[CSTATUSBAR]);
-//			tb_print(width-strlen(conf->s[CSTATUSBAR])-1, height-2, TB_BLUE | TB_BOLD, TB_DEFAULT, conf->s[CSTATUSBAR]);
+			tb_print(width-strlen(conf->s[CSTATUSBAR])-1, height-2, TB_BLUE | TB_BOLD, TB_DEFAULT, conf->s[CSTATUSBAR]);
 		}
 
 		// date
 		time_t now = time(NULL);
-		sprintf(&data[1 +COLUMN*8], " %s", ctime(&now));
-//		tb_print(1, height-2, TB_MAGENTA | TB_BOLD, TB_DEFAULT, ctime(&now));
+		tb_print(1, height-2, TB_MAGENTA | TB_BOLD, TB_DEFAULT, ctime(&now));
 
 		// menu
-		sprintf(data, "%d", field);
-		sprintf(&data[1 +COLUMN*0], "SESSION : %*s", 20, conf->fields[CSESSIONS][sel[CSESSIONS]*2]);
-/*		int bg = TB_DEFAULT;
+		int bg = TB_DEFAULT;
 		if (field==0) {
 			bg = TB_REVERSE;
 		}
-		tb_printf(cx-12, cy,   0, bg, " SESSION  : %*s ", 20, conf->fields[CSESSIONS][sel[CSESSIONS]*2]);*/
+		tb_printf(cx-12, cy,   0, bg, " SESSION  : %*s ", 20, conf->fields[CSESSIONS][sel[CSESSIONS]*2]);
 
-		sprintf(&data[1 +COLUMN*2], "USER    : %*s", 20, conf->fields[CUSERS][sel[CUSERS]]);
-/*		bg = TB_DEFAULT;
+		bg = TB_DEFAULT;
 		if (field==1) {
 			bg = TB_REVERSE;
 		}
-		tb_printf(cx-12, cy+2, 0, bg, " USER     : %*s ", 20, conf->fields[CUSERS][sel[CUSERS]]);*/
+		tb_printf(cx-12, cy+2, 0, bg, " USER     : %*s ", 20, conf->fields[CUSERS][sel[CUSERS]]);
 
-		sprintf(&data[1 +COLUMN*4], "PASSWORD: %*s", 20, str);
-//		tb_printf(cx-12, cy+4, 0, TB_DEFAULT, " PASSWORD : %*s ", 20, str);
+		tb_printf(cx-12, cy+4, 0, TB_DEFAULT, " PASSWORD : %*s ", 20, str);
 
-		sprintf(&data[1 +COLUMN*6], "LANGUAGE: %*s", 20, conf->fields[CLANGUAGES][sel[CLANGUAGES]*2]);
-/*		bg = TB_DEFAULT;
+		bg = TB_DEFAULT;
 		if (field==2) {
 			bg = TB_REVERSE;
 		}
-		tb_printf(cx-12, cy+6, 0, bg, " LANGUAGE : %*s ", 20, conf->fields[CLANGUAGES][sel[CLANGUAGES]*2]);*/
+		tb_printf(cx-12, cy+6, 0, bg, " LANGUAGE : %*s ", 20, conf->fields[CLANGUAGES][sel[CLANGUAGES]*2]);
+
+		// show
+		tb_present();
 
 		// input
-		data[0] = field == 2 ? 3 : field;
-		ui_draw((uint8_t*)data);
-		c = ui_peek_event();
+		int e = tb_peek_event(&ev, 100);
+		if (e == -1) {
+			continue;
+		}
+		if (ev.type != TB_EVENT_KEY) {
+			continue;
+		}
 #ifdef DEBUG
-//		printf("%lx\n", c);
-		if (c == 0x1b) break;
+		if (ev.key == TB_KEY_ESC) {
+			break;
+		}
+//		tb_printf(1, height-3, TB_MAGENTA | TB_BOLD, TB_DEFAULT, "key:%x ch:%c", ev.key, ev.ch);
+//		tb_present();
 #endif
 
-		switch (c) {
-//		case -1:
-		case 0:
+//		ELOCATE(cy+4, cx+cur_pos);
+		switch (ev.key) {
 		case 0x1b:		// Esc
 			continue;
-		case 0x7f:		// Back space
+		case TB_KEY_BACKSPACE:	// Back space 0x8
+		case TB_KEY_BACKSPACE2:	// 0x7f
 			if (cur_pos!=0) {
 				cur_pos--;
 				str[cur_pos] = 0;
 			}
 			break;
-		case 0x0d:		// Enter
-		case 0x0a:		// Enter
+		case TB_KEY_ENTER:	// Enter
+//			tb_print("Authenticating", cx-4, cy+8, TB_MAGENTA | TB_BOLD, TB_DEFAULT);
 			if (authenticate("system-auth", conf->fields[CUSERS][sel[CUSERS]], str)) {
 //				ELOCATE(cy+8, cx-4);	// (32 - 17) / 2 = 8
 //				printf("\e[48;5;206;97mNot Authenticated\e[0m"); // 17 chars
-				sprintf(&data[1 +COLUMN*7], "      Not Authenticated!      ");
-				count = 20;
-				c = 0;
+				tb_print(cx-4, cy+8, TB_RED | TB_BOLD, TB_DEFAULT, "Not Authenticated");
+				tb_present();
+
+				ev.key = 0; // avoid exit
+
+				struct timespec req;
+				req.tv_sec  = 0;
+				req.tv_nsec = 500000000;
+				nanosleep(&req, NULL);
+
+//				cur_pos = 0; // clear
+//				str[cur_pos] = 0;
 				continue;
 			}
 			break;
-		case 0x415b1b:		// Up
+		case TB_KEY_ARROW_UP:	// Up
 			field--;
-			if (field<0) field = 2;
+			if (field<0) {
+				field = 2;
+			}
 			break;
-		case 0x425b1b:		// Down
+		case TB_KEY_ARROW_DOWN:	// Down
 			field++;
-			if (field>2) field = 0;
+			if (field>2) {
+				field = 0;
+			}
 			break;
-		case 0x435b1b:		// Right
+		case TB_KEY_ARROW_RIGHT:// Right
 			sel[field]++;
-			if (sel[field]>=conf->fields_count[field]) sel[field] = 0;
+			if (sel[field]>=conf->fields_count[field]) {
+				sel[field] = 0;
+			}
 			break;
-		case 0x445b1b:		// Left
+		case TB_KEY_ARROW_LEFT:	// Left
 			sel[field]--;
-			if (sel[field]<0) sel[field] = conf->fields_count[field]-1;
+			if (sel[field]<0) {
+				sel[field] = conf->fields_count[field]-1;
+			}
 			break;
-		case 0x7e38325b1b:	// F7
-			if (conf->s[CF7]) system(conf->s[CF7]);
+		case TB_KEY_F7:		// F7
+			if (conf->s[CF7]) {
+				system(conf->s[CF7]);
+			}
 			break;
-		case 0x7e39325b1b:	// F8
-			if (conf->s[CF8]) system(conf->s[CF8]);
+		case TB_KEY_F8:		// F8
+			if (conf->s[CF8]) {
+				system(conf->s[CF8]);
+			}
 			break;
-		case 0x7e30325b1b:	// F9
-			if (conf->s[CF9]) system(conf->s[CF9]);
+		case TB_KEY_F9:		// F9
+			if (conf->s[CF9]) {
+				system(conf->s[CF9]);
+			}
 			break;
-		case 0x7e31325b1b:	// F10
-			if (conf->s[CF10]) system(conf->s[CF10]);
+		case TB_KEY_F10:	// F10
+			if (conf->s[CF10]) {
+				system(conf->s[CF10]);
+			}
 			break;
-		case 0x7e33325b1b:	// F11
-			if (conf->s[CF11]) system(conf->s[CF11]);
+		case TB_KEY_F11:	// F11
+			if (conf->s[CF11]) {
+				system(conf->s[CF11]);
+			}
 			break;
-		case 0x7e34325b1b:	// F12
-			if (conf->s[CF12]) system(conf->s[CF12]);
+		case TB_KEY_F12:	// F12
+			if (conf->s[CF12]) {
+				system(conf->s[CF12]);
+			}
 			break;
 		default:
-			if (cur_pos<200) {
-				str[cur_pos++] = c;
+			if (cur_pos<200 && ev.ch) {
+//				str[cur_pos++] = ev.key;
+				str[cur_pos++] = ev.ch;
 				str[cur_pos] = 0;
 			}
 		}
 
-	} while (/*c!=27 &&*/ c!=10/*Enter*/);
-	ui_shutdown();
+	} while (ev.key!=TB_KEY_ENTER);
 
 	if (conf->s[CIMAGE]) {
-		if (screen) free(screen);
+		free(screen);
 	}
+	fire_free(&buf);
+	tb_shutdown();
 
 #ifndef DEBUG
 	char *p = conf->fields[CSESSIONS][sel[CSESSIONS]*2+1];

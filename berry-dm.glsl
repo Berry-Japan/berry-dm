@@ -268,6 +268,7 @@ void _mainImage( out vec4 fragColor, in vec2 fragCoord )
 }
 
 
+//#define DEBUG
 #define HIGHQ
 #define BORDERIZE
 
@@ -375,26 +376,27 @@ const int ipow10[12] = int[12](1, 10, 100, 1000, 10000, 100000, 1000000, 1000000
 #define _z 90
 // {|}~
 
-#define XPOS		16
+#define XPOS		15
 #define YPOS		3
-#define COLUMN		24
+#define COLUMN		30
 #define MAXCOLUMN	60
-const int menu[COLUMN*7] = int[](
-_S, _E, _S, _S, _I, _O, _N, _SP, _CL,        _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP,
-_SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP,
-_U, _S, _E, _R, _SP, _SP, _SP, _SP, _CL,     _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP,
-_SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP,
-_P, _A, _S, _S, _W, _O, _R, _D, _CL,         _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP,
-_SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP,
-_L, _A, _N, _G, _U, _A, _G, _E, _CL,         _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP
-);
-/*const int statusbar[MAXCOLUMN] = int[](
-_SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP
-);*/
-const int statusbar[MAXCOLUMN] = int[](
+#ifdef DEBUG
+const int data[1 +COLUMN*8 +MAXCOLUMN*2] = int[](
+0,
+_S, _E, _S, _S, _I, _O, _N, _SP, _CL,        _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP,
+_SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP,
+_U, _S, _E, _R, _SP, _SP, _SP, _SP, _CL,     _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP,
+_SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP,
+_P, _A, _S, _S, _W, _O, _R, _D, _CL,         _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP,
+_SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP,
+_L, _A, _N, _G, _U, _A, _G, _E, _CL,         _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP,
+_M, _E, _S, _S, _A, _G, _E, _SP, _SP,        _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP,
 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,
+33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,
+_S,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,
 33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60
 );
+#endif
 
 #ifdef HIGHQ
 
@@ -543,13 +545,11 @@ vec3 print5x7float(float num, vec2 uv, int wholecount, int decimalcount)
 
 float getData(int pos)
 {
-//	return texture(iChannel3, vec2((float(pos) + 0.5) / 256., .5/1.)).r;
-	return texture(iChannel3, vec2((float(pos) + 0.5) / 256., .5/3.)).r;
-//	pos += 65;
-//	return texture(iChannel0, vec2((float(pos) + 0.5) / 256., .5/3.)).r;
+//	return texture(iChannel3, vec2((float(pos) + 0.5) / 256., .5/3.)).r;
+	int x = pos % 256;
+	int y = pos / 256;
+	return texture(iChannel3, vec2((float(x) + 0.5) / 256., (float(y) + 0.5)/3.)).r;
 }
-
-int sel = 0;
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord)
 {
@@ -568,39 +568,51 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
 	uv += vec2(.5, .3);
 
 	// Make our "screen size" 
-//	uv.y *= 20.0;
-//	uv.x *= 2.5;
-	uv.y *= 40.0;
-	uv.x *= 5.0;
+	uv.y *= 40.0;	// height: 40
+	uv.x *= 5.0;	// width : 60 (5*12)
 
 	// Find our line and column.
 	vec3 col = vec3(0.0); // black
-//	int line = 10-int(uv.y);
 	int line = 20-int(uv.y);
 	int column = int(uv.x*12.);
 
 	if (line>=YPOS && line<=YPOS+6 && column>=XPOS && column<XPOS+COLUMN) {
-		// MENU
+		// menu
 		line -= YPOS;
 		column -= XPOS;
-//		int char = menu[line*COLUMN + column];
-		int char = int(getData(line*COLUMN +column)*255.)-32;
+#ifdef DEBUG
+		int sel = data[0];
+		int char = data[1 +line*COLUMN +column];
+#else
+		int sel = int(getData(0)*255.);
+		int char = int(getData(1 +line*COLUMN +column)*255.)-32;
+#endif
 		col = char5x7(char, mod(uv*vec2(6*12, 8), vec2(6, 8)));
 
 		if (sel*2 == line) col = 1.0 - col; // selected
-	} else if (line==20) {
+	} else if (line>=YPOS+9 && line<=YPOS+9 && column>=XPOS && column<XPOS+COLUMN) {
+		// message
+		column -= XPOS;
+#ifdef DEBUG
+		int char = data[1 +7*COLUMN +column];
+#else
+		int char = int(getData(1 +7*COLUMN +column)*255.)-32;
+#endif
+		col = char5x7(char, mod(uv*vec2(6*12, 8), vec2(6, 8))) +vec3(0.2, 0., 0.);
+	} else if (line>=19 && line<20 && column>=0 && column<MAXCOLUMN) {
 		// statusbar
-//		col = char5x7(statusbar[column], mod(uv*vec2(6*12, 8), vec2(6, 8)));
-		col = char5x7(int(getData(column)*255.)-32, mod(uv*vec2(6*12, 8), vec2(6, 8)));
+		line -= 19;
 
-		// date
-/*		int value = 0;
-		if (column>=8 && column<=11) {
-			value = int(iDate.x);
-			col = vec3(print5x7intzl(value, uv, 12));
-		}
-		//else value = int(iDate.y);*/
-//		col = vec3(print5x7int(value, uv, 12, -16));
+		uv.x *= 10.0/5.0; // 1/2 font size
+		int column = int(uv.x*12.);
+#ifdef DEBUG
+		col = char5x7(data[1 +COLUMN*8 +MAXCOLUMN*line +column], mod(uv*vec2(6*12, 8), vec2(6, 8)));
+#else
+		int char = int(getData(1 +COLUMN*8 +MAXCOLUMN*2*line +column)*255.);
+		if (char>31 && char<176) char -= 32;
+		else char = _SP;
+		col = char5x7(char, mod(uv*vec2(6*12, 8), vec2(6, 8)));
+#endif
 	}
 
 	// Output to screen
