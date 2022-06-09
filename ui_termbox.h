@@ -15,14 +15,46 @@ int px=1, py=1, f=0;
 unsigned char *screen = 0;
 int cx, cy;*/
 
-uint64_t ui_peek_event()
+uint64_t ui_termbox_peek_event()
 {
 	struct tb_event ev;
 	tb_peek_event(&ev, 100);
-	return ev.key;
+
+	uint32_t ch = ev.ch;
+	switch (ev.key) {
+	case TB_KEY_ESC:
+		return 0x1b;
+	case TB_KEY_BACKSPACE:
+	case TB_KEY_BACKSPACE2:
+		return 0x7f;
+	case TB_KEY_ENTER:
+		return 0x0a;
+	case TB_KEY_ARROW_UP:
+		return 0x415b1b;
+	case TB_KEY_ARROW_DOWN:
+		return 0x425b1b;
+	case TB_KEY_ARROW_RIGHT:
+		return 0x435b1b;
+	case TB_KEY_ARROW_LEFT:
+		return 0x445b1b;
+	case TB_KEY_F7:
+		return 0x7e38325b1b;
+	case TB_KEY_F8:
+		return 0x7e39325b1b;
+	case TB_KEY_F9:
+		return 0x7e30325b1b;
+	case TB_KEY_F10:
+		return 0x7e31325b1b;
+	case TB_KEY_F11:
+		return 0x7e33325b1b;
+	case TB_KEY_F12:
+		return 0x7e34325b1b;
+	}
+
+	return ch;
 }
 
-void ui_draw(uint8_t *data)
+void ui_termbox_draw(uint8_t *data)
 {
 	int cx, cy;
 
@@ -70,11 +102,6 @@ void ui_draw(uint8_t *data)
 #define COLUMN		30
 #define MAXCOLUMN	60
 
-//	tb_print(1, buf.height-2, TB_MAGENTA | TB_BOLD, TB_DEFAULT, &data[1 +COLUMN*8]);
-
-//	int XPOS = (buf.width/2)-30/2;
-//	int sx = (buf.width -MAXCOLUMN)/2;
-
 	struct tb_cell* c = tb_cell_buffer();
 
 	for (int line=0; line < buf.height; line++) {
@@ -83,7 +110,7 @@ void ui_draw(uint8_t *data)
 				// MENU
 				line -= YPOS;
 				column -= XPOS;
-				int n = (line+cy)*buf.width +column +(cx-12);
+				int n = (line+cy-2)*buf.width +column +(cx-12);
 				int sel = data[0];
 				c[n].ch = data[1 +line*COLUMN +column];
 				if (sel*2 == line) {
@@ -96,14 +123,20 @@ void ui_draw(uint8_t *data)
 
 				line += YPOS;
 				column += XPOS;
+			} else if (line>=YPOS+9 && line<=YPOS+9 && column>=XPOS && column<XPOS+COLUMN) {
+				// message
+				column -= XPOS;
+				int n = (line+cy-YPOS-2)*buf.width +column +(cx-12);
+				c[n].ch = data[1 +7*COLUMN +column];
+				c[n].fg = TB_RED | TB_BOLD;
+				c[n].bg = TB_DEFAULT;
+
+				column += XPOS;
 			} else if (line>=18 && line<20 && column>=0 && column<MAXCOLUMN) {
 				// statusbar
 				int n = buf.width*(buf.height-1) +column;
 				if (line==19) n += buf.width -MAXCOLUMN;
-//				int n = buf.width*line +column;
-//				if (line==18) n -= sx;
-//				else n += sx -buf.width;
-//				if (line==19) n += -buf.width;
+
 				line -= 18;
 
 				c[n].ch = data[1 +COLUMN*8 +MAXCOLUMN*line +column];
@@ -111,20 +144,14 @@ void ui_draw(uint8_t *data)
 				c[n].bg = TB_DEFAULT;
 
 				line += 18;
-//				tb_change_cell(x, y, uni, fg, bg);
 			}
 		}
 	}
-/*	for (int n=0; n < 256; n++) {
-		c[n].ch = *data++;
-		c[n].fg = 0;
-		c[n].bg = TB_DEFAULT;
-	}*/
 
 	tb_present();
 }
 
-int ui_init()
+int ui_termbox_init()
 {
 	tb_init();
 	tb_select_output_mode(TB_OUTPUT_256);
@@ -137,7 +164,7 @@ int ui_init()
 //	atexit(tb_shutdown);
 }
 
-void ui_shutdown()
+void ui_termbox_shutdown()
 {
 /*	if (conf->s[CIMAGE]) {
 		free(screen);

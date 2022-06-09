@@ -34,7 +34,9 @@ static const struct egl *egl;
 static const struct gbm *gbm;
 static const struct drm *drm;
 
-uint64_t ui_peek_event()
+//void main(){vec4 p;for(int i=0;i<30;++i)p=vec4(gl_FragCoord.xy/r-.5,1,0)*o,p.z-=5.,o+=length(p)-1.;o*=.1;}
+
+uint64_t ui_glsl_peek_event()
 {
 	uint64_t c = 0;
 	read(0, &c, 8);
@@ -44,7 +46,7 @@ uint64_t ui_peek_event()
 	return c;
 }
 
-void ui_draw(uint8_t *data)
+void ui_glsl_draw(uint8_t *data)
 {
 //	glClearColor(0.5, 0.5, 0.5, 1.0);
 //	glClear(GL_COLOR_BUFFER_BIT);
@@ -55,7 +57,7 @@ void ui_draw(uint8_t *data)
 	drm->draw(gbm, egl);
 }
 
-int ui_init()
+int ui_glsl_init()
 {
 	const char *device = NULL;
 	char mode_str[DRM_DISPLAY_MODE_LEN] = "";
@@ -99,6 +101,6 @@ int ui_init()
 	return 0;
 }
 
-void ui_shutdown()
+void ui_glsl_shutdown()
 {
 }

@@ -16,8 +16,12 @@
 
 #define CONFIG		"/etc/berry-dm.conf"
 #define GLSL		"/etc/berry-dm.glsl"
+#include "ui_termbox.h"
 #include "ui.h"
-//#include "ui_termbox.h"
+uint64_t (*ui_peek_event)() = ui_glsl_peek_event;
+void (*ui_draw)(uint8_t *data) = ui_glsl_draw;
+int (*ui_init)() = ui_glsl_init;
+void (*ui_shutdown)() = ui_glsl_shutdown;
 
 //#define DEBUG
 #ifdef DEBUG
@@ -118,10 +122,15 @@ void ui(configuration *conf)
 	int w, h, frames;
 	int px=1, py=1, f=0;
 	unsigned char *screen = 0;
-//	int cx, cy;
 	int count = 0;
 	uint64_t c = 0; // key
-	ui_init();
+	if (ui_init()) {
+		ui_peek_event = ui_termbox_peek_event;
+		ui_draw = ui_termbox_draw;
+		ui_init = ui_termbox_init;
+		ui_shutdown = ui_termbox_shutdown;
+		ui_init();
+	}
 	memset(data, 32, sizeof(data));
 	do {
 		// image
@@ -141,41 +150,22 @@ void ui(configuration *conf)
 
 		// function key
 		if (conf->s[CSTATUSBAR]) {
-//			sprintf(&data[1 +COLUMN*7 +width +(width-strlen(conf->s[CSTATUSBAR])-1)], "%s", conf->s[CSTATUSBAR]);
 			sprintf(&data[1 +COLUMN*8 +width], "%*s", width, conf->s[CSTATUSBAR]);
-//			tb_print(width-strlen(conf->s[CSTATUSBAR])-1, height-2, TB_BLUE | TB_BOLD, TB_DEFAULT, conf->s[CSTATUSBAR]);
 		}
 
 		// date
 		time_t now = time(NULL);
 		sprintf(&data[1 +COLUMN*8], " %s", ctime(&now));
-//		tb_print(1, height-2, TB_MAGENTA | TB_BOLD, TB_DEFAULT, ctime(&now));
 
 		// menu
 		sprintf(data, "%d", field);
 		sprintf(&data[1 +COLUMN*0], "SESSION : %*s", 20, conf->fields[CSESSIONS][sel[CSESSIONS]*2]);
-/*		int bg = TB_DEFAULT;
-		if (field==0) {
-			bg = TB_REVERSE;
-		}
-		tb_printf(cx-12, cy,   0, bg, " SESSION  : %*s ", 20, conf->fields[CSESSIONS][sel[CSESSIONS]*2]);*/
 
 		sprintf(&data[1 +COLUMN*2], "USER    : %*s", 20, conf->fields[CUSERS][sel[CUSERS]]);
-/*		bg = TB_DEFAULT;
-		if (field==1) {
-			bg = TB_REVERSE;
-		}
-		tb_printf(cx-12, cy+2, 0, bg, " USER     : %*s ", 20, conf->fields[CUSERS][sel[CUSERS]]);*/
 
 		sprintf(&data[1 +COLUMN*4], "PASSWORD: %*s", 20, str);
-//		tb_printf(cx-12, cy+4, 0, TB_DEFAULT, " PASSWORD : %*s ", 20, str);
 
 		sprintf(&data[1 +COLUMN*6], "LANGUAGE: %*s", 20, conf->fields[CLANGUAGES][sel[CLANGUAGES]*2]);
-/*		bg = TB_DEFAULT;
-		if (field==2) {
-			bg = TB_REVERSE;
-		}
-		tb_printf(cx-12, cy+6, 0, bg, " LANGUAGE : %*s ", 20, conf->fields[CLANGUAGES][sel[CLANGUAGES]*2]);*/
 
 		// input
 		data[0] = field == 2 ? 3 : field;
@@ -249,7 +239,7 @@ void ui(configuration *conf)
 			}
 		}
 
-	} while (/*c!=27 &&*/ c!=10/*Enter*/);
+	} while (/*c!=27 &&*/ c!=10/*Enter*/ && c!=0xd);
 	ui_shutdown();
 
 	if (conf->s[CIMAGE]) {
