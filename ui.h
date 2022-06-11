@@ -80,18 +80,24 @@ int ui_glsl_init()
 
 	gbm = init_gbm(drm->fd, drm->mode->hdisplay, drm->mode->vdisplay, format, modifier, surfaceless);
 	if (!gbm) {
+		finish_drm();
 		printf("failed to initialize GBM\n");
 		return -1;
 	}
 
 	egl = init_egl(gbm);
 	if (!egl) {
+		finish_gbm();
+		finish_drm();
 		printf("failed to initialize EGL\n");
 		return -1;
 	}
 
 	int ret = init_shadertoy(gbm, (struct egl *)egl, GLSL);
 	if (ret < 0) {
+		finish_egl();
+		finish_gbm();
+		finish_drm();
 		return -1;
 	}
 
@@ -103,4 +109,7 @@ int ui_glsl_init()
 
 void ui_glsl_shutdown()
 {
+	finish_egl();
+	finish_gbm();
+	finish_drm();
 }
