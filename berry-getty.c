@@ -68,7 +68,7 @@ static void echo_off()
 	}
 }
 
-int doutmp()
+void doutmp()
 {
 	off_t curpos;
 	struct utmp ut;

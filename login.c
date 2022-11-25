@@ -105,8 +105,9 @@ int main(int argc, char* argv[])
 		char buff[256];
 		FILE *fp = fopen("/proc/cmdline", "r");
 		if (fp!=NULL) {
-			fread(buff, 256, 256, fp);
+			fread(buff, sizeof(buff), sizeof(char), fp);
 			fclose(fp);
+			buff[255] = 0;
 		}
 
 		if (strstr(buff, "quiet")) set_printk(0);
@@ -120,10 +121,10 @@ int main(int argc, char* argv[])
 //			setenv("DM_XSESSION", "startlxde", 1);
 //			setenv("DM_XSESSION", "/etc/lxdm/Xsession", 1);
 			char *p;
-			if ((p=strstr(buff, "desktop=maynard"))) {
+			if ((p=strstr(buff, "desktop=wayfire"))) {
 				setenv("DM_RUN_SESSION", "1", 1);
-				setenv("DM_XSESSION", "maynard", 1);
-				setenv("DM_XINIT", "maynard", 1);
+				setenv("DM_XSESSION", "wayfire", 1);
+				setenv("DM_XINIT", "wayfire", 1);
 			} else {
 				setenv("DM_XSESSION", "/etc/X11/berryos-xsession", 1);
 			}

@@ -162,6 +162,7 @@ int ui_termbox_init()
 	fire_init(&buf);
 
 //	atexit(tb_shutdown);
+	return 0;
 }
 
 void ui_termbox_shutdown()

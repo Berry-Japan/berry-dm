@@ -44,23 +44,27 @@ int split(char *data, char *argv[], int size)
 	return i;
 }
 
-#define CSESSIONS	0
-#define CUSERS		1
-#define CLANGUAGES	2
-#define CIMAGE		3
-#define CTEXT		4
-#define CF7		5
-#define CF8		6
-#define CF9		7
-#define CF10		8
-#define CF11		9
-#define CF12		10
-#define CSTATUSBAR	11
-#define CNUM		12
+enum {
+	CSESSIONS,
+	CUSERS,
+	CLANGUAGES,
+	CIMAGE,
+	CTEXT,
+	CF7,
+	CF8,
+	CF9,
+	CF10,
+	CF11,
+	CF12,
+	CSTATUSBAR,
+	CGUI,
+	//CAUTOLOGIN,
+	CNUM
+};
 typedef struct {
 	char* s[CNUM];
-	int fields_count[3];
-	char* fields[3][CNUM];
+	int fields_count[10];
+	char* fields[10][CNUM];
 } configuration;
 
 int handler(void* user, const char* section, const char* name, const char* value)
@@ -95,6 +99,10 @@ int handler(void* user, const char* section, const char* name, const char* value
 		pconfig->s[CF12] = strdup(value);
 	} else if (MATCH("config", "statusbar")) {
 		pconfig->s[CSTATUSBAR] = strdup(value);
+//	} else if (MATCH("config", "autologin")) {
+//		pconfig->s[CAUTOLOGIN] = strdup(value);
+	} else if (MATCH("config", "gui")) {
+		pconfig->s[CGUI] = strdup(value);
 	} else {
 		return 0;  /* unknown section/name, error */
 	}
@@ -105,8 +113,8 @@ int handler(void* user, const char* section, const char* name, const char* value
 #define MAXCOLUMN	60
 static char data[256*3];
 
-static size_t width = 60;
-static size_t height = 24;
+static int width = 60;
+static int height = 24;
 void ui(configuration *conf)
 {
 	int field = 1;
@@ -124,7 +132,9 @@ void ui(configuration *conf)
 	unsigned char *screen = 0;
 	int count = 0;
 	uint64_t c = 0; // key
-	if (ui_init()) {
+	int r = 1;
+	if (!strncmp(conf->s[CGUI], "glsl", 4)) r = ui_init();
+	if (r) {
 		ui_peek_event = ui_termbox_peek_event;
 		ui_draw = ui_termbox_draw;
 		ui_init = ui_termbox_init;
