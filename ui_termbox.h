@@ -67,26 +67,21 @@ void ui_termbox_draw(uint8_t *data)
 	if (sw!=buf.width || sh!=buf.height) {
 		buf.width = sw;
 		buf.height = sh;
-
-#if 0
-		if (conf->s[CIMAGE]) {
-			if (screen) {
-				free(screen);
-			}
-			screen = aviewer_init(conf->s[CIMAGE], buf.width*0.4, buf.height*0.4, &w, &h, &frames);
-			if (h>0 && h<buf.height) {
-				py = (buf.height-h)/2;        // center
-			}
-		}
-#endif
 	}
 	cx = buf.width/2 - 11/2;
 	cy = buf.height/2 - 4/*N_FIELDS*//2;
 
 	// animation
-	fire(&buf);
+//	fire(&buf);
 
 	// image
+	if (screen) {
+		pimage(screen+f*w*h, 1, py, w, h);
+		f++;
+		if (f>=frames) {
+			f = 0;
+		}
+	}
 /*	if (conf->s[CTEXT]) {
 		ptext(conf->s[CTEXT]);
 	} else if (conf->s[CIMAGE]) {

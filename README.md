@@ -14,7 +14,10 @@ A minimalistic display manager for console.
 To make berry-dm
 
 ```Bash
-$ clang -o berry-dm -Os berry-dm.c login.c ui.c 3rd/ini.c -lm -lpam -lpam_misc
+$ sudo dnf install pam-devel
+$ sudo dnf install libdrm-devel mesa-libgbm-devel
+$ #clang -Os -o berry-dm -Os berry-dm.c login.c ui.c 3rd/ini.h -lm -lpam -lpam_misc
+$ gcc -o berry-dm -Os berry-dm.c login.c ui.c -I/usr/include/libdrm -lm -lpam -lpam_misc -ldrm -lgbm -lGLESv2 -lEGL
 # mv berry-dm /usr/local/sbin/
 $ cp berry-dm.pam /etc/pam.d/berry-dm
 $ cp berry-dm.conf /etc/

@@ -1,5 +1,5 @@
 // berry-dm
-// Copyright © 2015,2022 Yuichiro Nakada
+// Copyright © 2015-2024 Yuichiro Nakada
 
 // clang -o ui ui.c 3rd/ini.c -lm
 #include <stdio.h>
@@ -13,6 +13,11 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "3rd/stb_image.h"
+
+// for ascii art
+int w, h, frames;
+int px=1, py=1, f=0;
+uint8_t *screen = 0;
 
 #define CONFIG		"/etc/berry-dm.conf"
 #define GLSL		"/etc/berry-dm.glsl"
@@ -70,6 +75,7 @@ typedef struct {
 int handler(void* user, const char* section, const char* name, const char* value)
 {
 	configuration* pconfig = (configuration*)user;
+	pconfig->s[CGUI] = "console";
 
 #define MATCH(s, n) strcmp(section, s) == 0 && strcmp(name, n) == 0
 	if (MATCH("config", "sessions")) {
@@ -127,9 +133,6 @@ void ui(configuration *conf)
 	unsigned int cur_pos = 0;
 	unsigned int max_pos = 0;
 
-	int w, h, frames;
-	int px=1, py=1, f=0;
-	unsigned char *screen = 0;
 	int count = 0;
 	uint64_t c = 0; // key
 	int r = 1;
@@ -141,6 +144,20 @@ void ui(configuration *conf)
 		ui_shutdown = ui_termbox_shutdown;
 		ui_init();
 	}
+
+	/*int w, h, frames;
+	int px=1, py=1, f=0;
+	uint8_t *screen = 0;*/
+	if (conf->s[CIMAGE]) {
+		/*if (screen) {
+			free(screen);
+		}*/
+		screen = aviewer_init(conf->s[CIMAGE], buf.width*0.4, buf.height*0.4, &w, &h, &frames);
+		if (h>0 && h<buf.height) {
+			py = (buf.height-h)/2; // center
+		}
+	}
+
 	memset(data, 32, sizeof(data));
 	do {
 		// image
