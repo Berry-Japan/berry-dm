@@ -75,7 +75,7 @@ typedef struct {
 int handler(void* user, const char* section, const char* name, const char* value)
 {
 	configuration* pconfig = (configuration*)user;
-	pconfig->s[CGUI] = "console";
+	pconfig->s[CGUI] = strdup("console");
 
 #define MATCH(s, n) strcmp(section, s) == 0 && strcmp(name, n) == 0
 	if (MATCH("config", "sessions")) {
@@ -161,13 +161,13 @@ void ui(configuration *conf)
 	memset(data, 32, sizeof(data));
 	do {
 		// image
-		if (conf->s[CTEXT]) {
-//			ptext(conf->s[CTEXT]);
+/*		if (conf->s[CTEXT]) {
+			ptext(conf->s[CTEXT]);
 		} else if (conf->s[CIMAGE]) {
-//			pimage(screen+f*w*h, 1, py, w, h);
+			pimage(screen+f*w*h, 1, py, w, h);
 			f++;
 			if (f>=frames) f = 0;
-		}
+		}*/
 
 		// message
 		if (count) {
@@ -271,6 +271,7 @@ void ui(configuration *conf)
 
 	if (conf->s[CIMAGE]) {
 		if (screen) free(screen);
+		screen = 0;
 	}
 
 #ifndef DEBUG

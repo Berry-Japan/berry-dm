@@ -1,5 +1,5 @@
 // berry-dm
-// Copyright © 2015,2022 Yuichiro Nakada
+// Copyright © 2015-2024 Yuichiro Nakada
 
 #define TB_IMPL
 #define TB_OPT_V1_COMPAT
@@ -78,9 +78,7 @@ void ui_termbox_draw(uint8_t *data)
 	if (screen) {
 		pimage(screen+f*w*h, 1, py, w, h);
 		f++;
-		if (f>=frames) {
-			f = 0;
-		}
+		if (f>=frames) f = 0;
 	}
 /*	if (conf->s[CTEXT]) {
 		ptext(conf->s[CTEXT]);
